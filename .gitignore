@@ -1,2 +1,8 @@
 *.DS_Store
 .ipynb_checkpoints
+*.exo
+*.log
+forces.dat
+restart/
+results/
+out.lesfoil_*
