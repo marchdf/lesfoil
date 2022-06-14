@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --nodes=1
-#SBATCH --time=04:00:00
+#SBATCH --time=00:10:00
 #SBATCH --account=hfm
 #SBATCH --job-name=lesfoil
-##SBATCH --partition=debug
+#SBATCH --partition=debug
 #SBATCH --output=out.%x_%j
 
 module purge

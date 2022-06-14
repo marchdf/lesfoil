@@ -1,0 +1,212 @@
+Simulations:
+- name: sim1
+  optimizer: opt1
+  time_integrator: ti_1
+Time_Integrators:
+- StandardTimeIntegrator:
+    name: ti_1
+    realms:
+    - realm_1
+    second_order_accuracy: true
+    start_time: 0
+    termination_step_count: 20002
+    time_step: 0.000001
+    time_step_count: 0
+    time_stepping_type: fixed
+linear_solvers:
+- name: solve_scalar
+  type: tpetra
+  method: gmres
+  preconditioner: riluk
+  tolerance: 1e-5
+  max_iterations: 200
+  kspace: 200
+  output_level: 0
+- name: solve_cont
+  type: hypre
+  method: hypre_gmres
+  preconditioner: boomerAMG
+  tolerance: 1e-5
+  max_iterations: 50
+  kspace: 75
+  output_level: 0
+  bamg_coarsen_type: 8
+  bamg_interp_type: 6
+  bamg_cycle_type: 1
+  absolute_tolerance: 1.0e-8
+realms:
+- boundary_conditions:
+  - target_name: airfoil
+    wall_boundary_condition: bc_wall
+    wall_user_data:
+      turbulent_ke: 0.0
+      use_wall_function: false
+      velocity: [0.0, 0.0, 0.0]
+  - inflow_boundary_condition: bc_inflow
+    inflow_user_data:
+      specific_dissipation_rate: 5.0
+      turbulent_ke: 1e-6
+      velocity: [1.0, 0.0, 0.0]
+    target_name: inflow
+  - open_boundary_condition: bc_open
+    open_user_data:
+      pressure: 0.0
+      specific_dissipation_rate: 5.0
+      turbulent_ke: 1e-6
+      velocity: [0.0, 0.0, 0.0]
+    target_name: outflow
+  - periodic_boundary_condition: bc_front_back
+    target_name: [front, back]
+    periodic_user_data:
+      search_tolerance: 0.000001
+  equation_systems:
+    max_iterations: 2
+    name: theEqSys
+    solver_system_specification:
+      ndtw: solve_cont
+      pressure: solve_cont
+      specific_dissipation_rate: solve_scalar
+      turbulent_ke: solve_scalar
+      velocity: solve_scalar
+    systems:
+    - WallDistance:
+        convergence_tolerance: 1e-8
+        max_iterations: 1
+        name: myNDTW
+    - LowMachEOM:
+        convergence_tolerance: 1e-8
+        max_iterations: 1
+        name: myLowMach
+    - ShearStressTransport:
+        convergence_tolerance: 1e-8
+        max_iterations: 1
+        name: mySST
+  initial_conditions:
+  - constant: ic_1
+    target_name:
+    - Flow-HEX
+    value:
+      pressure: 0
+      specific_dissipation_rate: 5.0
+      turbulent_ke: 1e-6
+      velocity: [1.0, 0.0, 0.0]
+      average_tke_resolved: 0.0
+      average_dudx: 0.0
+      k_ratio: 1.0
+      avg_res_adequacy_parameter: 1.0
+  material_properties:
+    specifications:
+    - name: density
+      type: constant
+      value: 1.0
+    - name: viscosity
+      type: constant
+      value: 4.761904761904762e-07
+    target_name:
+    - Flow-HEX
+  mesh: ../sst/restart/lesfoil.rst
+  name: realm_1
+  output:
+    output_data_base_name: results/lesfoil.e
+    output_frequency: 1
+    output_node_set: false
+    output_variables:
+    - velocity
+    - pressure
+    - turbulent_ke
+    - specific_dissipation_rate
+    - turbulent_viscosity
+    - minimum_distance_to_wall
+    - sst_f_one_blending
+    - tau_wall
+    - pressure
+    - pressure_force
+    - viscous_force
+    - tau_wall_vector
+    - assembled_area_force_moment
+    - dudx
+    - max_peclet_number
+    - max_peclet_factor
+    - element_courant
+    - vorticity
+    - k_ratio
+    - average_mass_flow_rate
+    - average_tke_resolved
+    - avg_res_adequacy_parameter
+    - resolution_adequacy_parameter
+    - metric_tensor
+    - average_production
+    - average_dudx
+    - forcing_components
+    - rans_time_scale
+    - PM1
+    - PM2
+    - PM3    
+  restart:
+    restart_data_base_name: restart/lesfoil.rst
+    restart_frequency: 500
+    restart_time: 10000000
+  post_processing:
+  - frequency: 1
+    output_file_name: forces.dat
+    parameters:
+    - 0.25
+    - 0
+    physics: surface_force_and_moment
+    target_name: airfoil
+    type: surface
+  turbulence_averaging:
+    time_filter_interval: 100000.0
+    specifications:
+      - name: one
+        target_name: [Flow-HEX]
+        compute_q_criterion: yes
+        compute_vorticity: yes
+  solution_options:
+    name: myOptions
+    options:
+    - hybrid_factor:
+        specific_dissipation_rate: 1.0
+        turbulent_ke: 1.0
+        velocity: 1.0
+    - upw_factor:
+        specific_dissipation_rate: 0.0
+        turbulent_ke: 0.0
+        velocity: 1.0
+    - alpha_upw:
+        specific_dissipation_rate: 1.0
+        turbulent_ke: 1.0
+        velocity: 1.0
+    - alpha:
+        velocity: 0.0
+        turbulent_ke: 1.0
+        specific_dissipation_rate: 1.0
+    - noc_correction:
+        pressure: true
+    - limiter:
+        pressure: false
+        specific_dissipation_rate: true
+        turbulent_ke: true
+        velocity: true
+    - projected_nodal_gradient:
+        pressure: element
+        specific_dissipation_rate: element
+        turbulent_ke: element
+        velocity: element
+    - relaxation_factor:
+        pressure: 0.3
+        specific_dissipation_rate: 0.7
+        turbulent_ke: 0.7
+        velocity: 0.7
+    - turbulence_model_constants:
+        SDRWallFactor: 0.625
+        sdr_amb: 5.0
+        tke_amb: 1e-6
+        coeffR: 0.5
+        forcingFactor: 32.0
+    projected_timescale_type: momentum_diag_inv
+    turbulence_model: sst_ams
+  time_step_control:
+    target_courant: 1000.0
+    time_step_change_factor: 1.05
+  use_edges: true
