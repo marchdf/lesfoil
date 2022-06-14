@@ -14,19 +14,12 @@ pw::Application markUndoLevel {Set Dimension 3D}
 
 # Number of points on pressure or suction side
 
-# # for medium
-# set np_pressure 400
-# set np_suction 400
+set ref coarse
 
-# # for fine
-# set np_pressure 400
-# set np_suction 800
-
-# for coarse
-# set np_pressure 100
-# set np_suction 100
-set np_pressure 51
-set np_suction 51
+if {$ref == "coarse"} {
+   set np_pressure 101
+   set np_suction 101
+}
 
 # Growth factor for initial wall normal extrusion
 set gf 1.10
@@ -51,6 +44,12 @@ set spanlength {0 0 0.05}
 set spandx 0.01
 set spansteps [expr {int([lindex $spanlength end] / $spandx)}]
 
+# length of branch connector
+set branch_offset {50 0 0}
+
+# Angle of attack
+set angle -13.3
+
 set _TMP(mode_1) [pw::Application begin DatabaseImport]
   $_TMP(mode_1) initialize -strict -type Segment $dir/lesfoil_lower.dat
   $_TMP(mode_1) read
@@ -66,6 +65,14 @@ set _TMP(mode_1) [pw::Application begin DatabaseImport]
 $_TMP(mode_1) end
 unset _TMP(mode_1)
 pw::Application markUndoLevel {Import Database}
+
+set _DB(1) [pw::DatabaseEntity getByName curve-2]
+set _DB(2) [pw::DatabaseEntity getByName curve-1]
+set _TMP(mode_1) [pw::Application begin Modify [list $_DB(1) $_DB(2)]]
+  pw::Entity transform [pwu::Transform rotation -anchor {0 0 0} {0 0 1} $angle] [$_TMP(mode_1) getEntities]
+$_TMP(mode_1) end
+unset _TMP(mode_1)
+pw::Application markUndoLevel Rotate
 
 set _DB(1) [pw::DatabaseEntity getByName curve-2]
 set _DB(2) [pw::DatabaseEntity getByName curve-1]
@@ -116,7 +123,7 @@ pw::Application markUndoLevel {Change Spacings}
 set _TMP(mode_1) [pw::Application begin Create]
   set _TMP(PW_1) [pw::SegmentSpline create]
   $_TMP(PW_1) addPoint [$_CN(1) getPosition -arc 1]
-  $_TMP(PW_1) addPoint {50 -0.011846 0}
+  $_TMP(PW_1) addPoint [pwu::Vector3 add [pw::Application getXYZ [$_CN(1) getPosition -arc 1]] $branch_offset]
   set _CN(3) [pw::Connector create]
   $_CN(3) addSegment $_TMP(PW_1)
   unset _TMP(PW_1)
@@ -131,7 +138,7 @@ set _TMP(mode_1) [pw::Application begin Create]
   unset _TMP(PW_1)
 $_TMP(mode_1) abort
 unset _TMP(mode_1)
-$_CN(3) setDimension 101
+$_CN(3) setDimension 51
 pw::CutPlane refresh
 pw::Application markUndoLevel Dimension
 
@@ -143,9 +150,7 @@ $_TMP(mode_1) end
 unset _TMP(mode_1)
 pw::Application markUndoLevel {Change Spacing}
 
-
-# Appended by Pointwise V18.4R2 - Thu Jun  9 13:41:26 2022
-
+# Extrude normal to airfoil
 set _TMP(mode_1) [pw::Application begin Create]
   set _TMP(PW_1) [pw::Edge createFromConnectors [list $_CN(2) $_CN(1) $_CN(3)]]
   set _TMP(edge_1) [lindex $_TMP(PW_1) 0]
@@ -169,10 +174,11 @@ set _TMP(mode_1) [pw::Application begin ExtrusionSolver [list $_DM(1)]]
   $_DM(1) setExtrusionBoundaryConditionStepSuppression Begin 0
   $_DM(1) setExtrusionSolverAttribute NormalInitialStepSize $ds
   $_DM(1) setExtrusionSolverAttribute StopAtHeight Off
-  $_DM(1) setExtrusionSolverAttribute StopAtHeight $bl_dist
   $_DM(1) setExtrusionSolverAttribute NormalVolumeSmoothing 0.01
   $_DM(1) setExtrusionSolverAttribute SpacingGrowthFactor $gf
-  $_TMP(mode_1) run 40
+  $_DM(1) setExtrusionSolverAttribute StopAtHeight 1.0
+  $_TMP(mode_1) run 500
+  $_DM(1) setExtrusionSolverAttribute StopAtHeight $bl_dist
   $_DM(1) setExtrusionSolverAttribute NormalVolumeSmoothing 0.5
   $_DM(1) setExtrusionSolverAttribute SpacingGrowthFactor 1.2
   $_TMP(mode_1) run 100
@@ -198,7 +204,6 @@ set _TMP(mode_1) [pw::Application begin ExtrusionSolver [list $_DM(2)]]
   $_TMP(mode_1) setKeepFailingStep true
   $_DM(2) setExtrusionSolverAttribute Mode Translate
   $_DM(2) setExtrusionSolverAttribute TranslateDirection {1 0 0}
-  $_DM(2) setExtrusionSolverAttribute TranslateDirection {1 0 0}
   $_DM(2) setExtrusionSolverAttribute TranslateDistance 100
   $_TMP(mode_1) run 20
 $_TMP(mode_1) end
@@ -210,8 +215,8 @@ set _CN(6) [pw::GridEntity getByName con-7]
 set _CN(7) [pw::GridEntity getByName con-9]
 set _TMP(mode_1) [pw::Application begin Modify [list $_CN(6) $_CN(7)]]
   pw::Connector swapDistribution Tanh [list [list $_CN(6) 1] [list $_CN(7) 1]]
-  [[$_CN(7) getDistribution 1] getBeginSpacing] setValue 3
-  [[$_CN(6) getDistribution 1] getBeginSpacing] setValue 3
+  [[$_CN(7) getDistribution 1] getBeginSpacing] setValue 5
+  [[$_CN(6) getDistribution 1] getBeginSpacing] setValue 5
 $_TMP(mode_1) end
 unset _TMP(mode_1)
 pw::Application markUndoLevel Distribute
@@ -388,9 +393,9 @@ unset _TMP(PW_11)
 # Save the mesh
 
 set _TMP(mode_1) [pw::Application begin CaeExport [pw::Entity sort [list $_BL(1) $_BL(2)]]]
-  $_TMP(mode_1) initialize -strict -type CAE $dir/lesfoil-c.exo
+  $_TMP(mode_1) initialize -strict -type CAE $dir/lesfoil-c-$ref.exo
   $_TMP(mode_1) verify
   $_TMP(mode_1) write
 $_TMP(mode_1) end
 unset _TMP(mode_1)
-pw::Application save $dir/lesfoil-c.pw
+pw::Application save $dir/lesfoil-c-$ref.pw
