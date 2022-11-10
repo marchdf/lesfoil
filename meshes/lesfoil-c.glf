@@ -194,12 +194,20 @@ set _TMP(mode_1) [pw::Application begin ExtrusionSolver [list $_DM(1)]]
   $_DM(1) setExtrusionSolverAttribute StopAtHeight Off
   $_DM(1) setExtrusionSolverAttribute NormalVolumeSmoothing 0.01
   $_DM(1) setExtrusionSolverAttribute SpacingGrowthFactor $gf
+  $_DM(1) setExtrusionSolverAttribute StopAtHeight 0.005
+  $_TMP(mode_1) run 500
+  $_DM(1) setExtrusionSolverAttribute StopAtHeight 0.02
+  $_DM(1) setExtrusionSolverAttribute NormalVolumeSmoothing 0.01
+  $_DM(1) setExtrusionSolverAttribute SpacingGrowthFactor 1.0
+  $_TMP(mode_1) run 500
   $_DM(1) setExtrusionSolverAttribute StopAtHeight 1.0
+  $_DM(1) setExtrusionSolverAttribute NormalVolumeSmoothing 0.01
+  $_DM(1) setExtrusionSolverAttribute SpacingGrowthFactor $gf
   $_TMP(mode_1) run 500
   $_DM(1) setExtrusionSolverAttribute StopAtHeight $bl_dist
   $_DM(1) setExtrusionSolverAttribute NormalVolumeSmoothing 0.5
   $_DM(1) setExtrusionSolverAttribute SpacingGrowthFactor 1.2
-  $_TMP(mode_1) run 100
+  $_TMP(mode_1) run 500
 $_TMP(mode_1) end
 unset _TMP(mode_1)
 #$_DM(1) delete
