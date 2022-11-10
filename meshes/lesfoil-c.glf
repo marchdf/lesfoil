@@ -14,11 +14,34 @@ pw::Application markUndoLevel {Set Dimension 3D}
 
 # Number of points on pressure or suction side
 
-set ref coarse
+set ref fine
 
 if {$ref == "coarse"} {
    set np_pressure 101
    set np_suction 101
+   set spandx 0.01
+
+   # Trailing and leading edge spacing
+   set te_dx 0.01
+   set le_dx 0.001
+}
+if {$ref == "fine"} {
+   set np_pressure 101
+   set np_suction 801
+   set spandx 0.0025
+
+   # Trailing and leading edge spacing
+   set te_dx 0.0025
+   set le_dx 0.00025
+}
+if {$ref == "finer"} {
+   set np_pressure 101
+   set np_suction 1601
+   set spandx 0.0025
+
+   # Trailing and leading edge spacing
+   set te_dx 0.0025
+   set le_dx 0.00025
 }
 
 # Growth factor for initial wall normal extrusion
@@ -30,10 +53,6 @@ set bl_dist 120.0
 # First cell height
 set ds 0.000011813977015662547
 
-# Trailing and leading edge spacing
-set te_dx 0.01
-set le_dx 0.001
-
 # Dimension of mesh
 set dim 3
 
@@ -41,7 +60,6 @@ set dim 3
 set spanlength {0 0 0.05}
 
 # Span spacing
-set spandx 0.01
 set spansteps [expr {int([lindex $spanlength end] / $spandx)}]
 
 # length of branch connector
