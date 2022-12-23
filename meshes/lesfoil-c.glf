@@ -150,23 +150,42 @@ $_TMP(mode_1) end
 unset _TMP(mode_1)
 pw::Application markUndoLevel {Create 2 Point Connector}
 
+set _TMP(split_params) [list]
+lappend _TMP(split_params) [$_CN(3) getParameter -closest [pw::Application getXYZ [list 1.25 0.0 0.0]]]
+set _TMP(PW_1) [$_CN(3) split $_TMP(split_params)]
+unset _TMP(PW_1)
+unset _TMP(split_params)
+pw::Application markUndoLevel Split
+set _CN(4) [pw::GridEntity getByName con-3-split-2]
+
 set _TMP(mode_1) [pw::Application begin Create]
   set _TMP(PW_1) [pw::SegmentSpline create]
   $_TMP(PW_1) delete
   unset _TMP(PW_1)
 $_TMP(mode_1) abort
 unset _TMP(mode_1)
-$_CN(3) setDimension 51
+$_CN(3) setDimensionFromSpacing -resetDistribution $te_dx
+$_CN(4) setDimension 31
 pw::CutPlane refresh
 pw::Application markUndoLevel Dimension
 
-set _TMP(mode_1) [pw::Application begin Modify [list $_CN(3)]]
-  set _TMP(PW_1) [$_CN(3) getDistribution 1]
+set _TMP(mode_1) [pw::Application begin Modify [list $_CN(4)]]
+  set _TMP(PW_1) [$_CN(4) getDistribution 1]
   $_TMP(PW_1) setBeginSpacing $te_dx
   unset _TMP(PW_1)
 $_TMP(mode_1) end
 unset _TMP(mode_1)
 pw::Application markUndoLevel {Change Spacing}
+
+set _TMP(PW_1) [pw::Connector join -reject _TMP(ignored) -keepDistribution [list $_CN(3) $_CN(4)]]
+unset _TMP(ignored)
+unset _TMP(PW_1)
+pw::Application markUndoLevel Join
+
+set _CN(3) [pw::GridEntity getByName con-3-split-1]
+$_CN(3) setName con-3
+unset _CN(4)
+pw::Application markUndoLevel {Modify Entity Name}
 
 # Extrude normal to airfoil
 set _TMP(mode_1) [pw::Application begin Create]
@@ -419,9 +438,9 @@ unset _TMP(PW_11)
 # Save the mesh
 
 set _TMP(mode_1) [pw::Application begin CaeExport [pw::Entity sort [list $_BL(1) $_BL(2)]]]
-  $_TMP(mode_1) initialize -strict -type CAE $dir/lesfoil-c-$ref.exo
+  $_TMP(mode_1) initialize -strict -type CAE $dir/lesfoil-c-$ref-constgf-wake.exo
   $_TMP(mode_1) verify
   $_TMP(mode_1) write
 $_TMP(mode_1) end
 unset _TMP(mode_1)
-pw::Application save $dir/lesfoil-c-$ref.pw
+pw::Application save $dir/lesfoil-c-$ref-constgf-wake.pw
