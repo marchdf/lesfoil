@@ -7,6 +7,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 import pandas as pd
 import numpy as np
 from scipy import interpolate
+import utilities
 
 
 plt.rc("text", usetex=True)
@@ -81,6 +82,12 @@ if __name__ == "__main__":
 
     # Parse arguments
     parser = argparse.ArgumentParser(description="A simple plot tool")
+    parser.add_argument(
+        "-f", "--fname", help="Data file to plot", required=True, type=str
+    )
+    parser.add_argument(
+        "-y", "--yname", help="Input file used", required=True, type=str
+    )
     args = parser.parse_args()
 
     # Reference data
@@ -171,10 +178,7 @@ if __name__ == "__main__":
     for rd in rdata:
         plt.figure(rd.key)
         plt.plot(
-            rd.xdata(),
-            rd.ydata(),
-            **styles[rd.val],
-            label=labels[rd.val],
+            rd.xdata(), rd.ydata(), **styles[rd.val], label=labels[rd.val],
         )
 
     # Estimate wall units (utau/nu)
@@ -208,11 +212,7 @@ if __name__ == "__main__":
 
     plt.figure("wall_units")
     plt.plot(
-        rd_zeta.xdata(),
-        wall_units_zeta,
-        lw=2,
-        color=cmap[0],
-        label="First estimate",
+        rd_zeta.xdata(), wall_units_zeta, lw=2, color=cmap[0], label="First estimate",
     )
     plt.plot(
         rd_eta.xdata(),
@@ -223,21 +223,12 @@ if __name__ == "__main__":
         label="Second estimate",
     )
     plt.plot(
-        xnew,
-        wall_units_mean,
-        lw=2,
-        color=cmap[2],
-        ls="--",
-        label="Mean",
+        xnew, wall_units_mean, lw=2, color=cmap[2], ls="--", label="Mean",
     )
 
     plt.figure("deta_physical")
     plt.plot(
-        rd_eta.xdata(),
-        deta_physical,
-        lw=2,
-        color=cmap[0],
-        label=labels[rd_eta.val],
+        rd_eta.xdata(), deta_physical, lw=2, color=cmap[0], label=labels[rd_eta.val],
     )
     plt.axhline(
         deta_physical_mean,
@@ -247,6 +238,71 @@ if __name__ == "__main__":
         color=cmap[-1],
         ls="--",
         label="Mean",
+    )
+
+    # Nalu-Wind data
+    u0, rho0, mu, turb_model, dt = utilities.parse_ic(args.yname)
+    model = turb_model.upper().replace("_", "-")
+    cord = 1.0
+    refArea = 0.05
+    tau = cord / u0
+    dynPres = rho0 * 0.5 * u0 * u0
+    re = rho0 * u0 * cord / mu
+    aoa = 13.3
+    rotcen = 0.0
+
+    cpcf = pd.read_csv(args.fname)
+    cpcf["cf"] = cpcf.tauw / dynPres
+    cpcf["cfx"] = cpcf.tauwx / dynPres
+    cpcf["cfy"] = cpcf.tauwy / dynPres
+    cpcf["cp"] = cpcf.pressure / dynPres
+    cpcf.sort_values(by=["theta"], inplace=True)
+    cord_angle = np.radians(aoa)
+    crdvec = np.array([np.cos(cord_angle), -np.sin(cord_angle)])
+    tan_crdvec = np.array([np.sin(cord_angle), np.cos(cord_angle)])
+    cpcf["xovc"] = (
+        np.dot(np.asarray([cpcf.x - rotcen, cpcf.y]).T, crdvec) / cord + rotcen
+    )
+    cpcf["yovc"] = (
+        np.dot(np.asarray([cpcf.x - rotcen, cpcf.y]).T, tan_crdvec) / cord + rotcen
+    )
+    cpcf["cfxp"] = cpcf.cfx * crdvec[0] + cpcf.cfy * crdvec[1]
+    cpcf["cfyp"] = -cpcf.cfx * crdvec[1] + cpcf.cfy * crdvec[0]
+
+    idx_xmax = np.argmax(cpcf.xovc)
+    upper = np.where(
+        ((cpcf.yovc > 0) & (cpcf.xovc <= 0.5))
+        | ((cpcf.yovc > cpcf.yovc.iloc[idx_xmax]) & (cpcf.xovc > 0.5))
+    )
+    lower = [i for i in range(len(cpcf)) if i not in upper[0].tolist()]
+
+    plt.figure("cp")
+    p = plt.plot(cpcf.xovc, -cpcf.cp, lw=2, color=cmap[3], label=f"{model}",)
+
+    plt.figure("airfoil")
+    p = plt.plot(cpcf.x, cpcf.y, lw=2, color=cmap[0], label="physical",)
+    p = plt.plot(
+        cpcf.xovc.iloc[lower],
+        cpcf.yovc.iloc[lower],
+        lw=2,
+        color=cmap[1],
+        label="rotated, lower",
+    )
+    p = plt.plot(
+        cpcf.xovc.iloc[upper],
+        cpcf.yovc.iloc[upper],
+        lw=2,
+        color=cmap[2],
+        label="rotated, upper",
+    )
+
+    plt.figure("cf")
+    p = plt.plot(
+        cpcf.xovc.iloc[upper],
+        cpcf.cfx.iloc[upper],
+        lw=2,
+        color=cmap[3],
+        label=f"{model}",
     )
 
     # Save the plots
@@ -322,7 +378,7 @@ if __name__ == "__main__":
         plt.figure("cp")
         ax = plt.gca()
         plt.xlabel(r"$x/c$", fontsize=22, fontweight="bold")
-        plt.ylabel(r"$C_p$", fontsize=22, fontweight="bold")
+        plt.ylabel(r"$-C_p$", fontsize=22, fontweight="bold")
         plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
         plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
         plt.xlim([0, 1])
@@ -451,5 +507,16 @@ if __name__ == "__main__":
         handles, labels = ax.get_legend_handles_labels()
         by_label = dict(zip(labels, handles))
         legend = ax.legend(by_label.values(), by_label.keys(), loc="best")
+        plt.tight_layout()
+        pdf.savefig(dpi=300)
+
+        plt.figure("airfoil")
+        ax = plt.gca()
+        plt.xlabel(r"$x/c$", fontsize=22, fontweight="bold")
+        plt.ylabel(r"$y / c$", fontsize=22, fontweight="bold")
+        plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
+        plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
+        legend = ax.legend(loc="best")
+        ax.axis("equal")
         plt.tight_layout()
         pdf.savefig(dpi=300)
