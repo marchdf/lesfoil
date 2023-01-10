@@ -121,10 +121,10 @@ if __name__ == "__main__":
         "lesfoil": "Mary \& Sagaut (2002) LES",
     }
     rdata = (
-        [RefData("dxi", "fig3a-", x) for x in ["CM1", "CM2", "CM3"]]
-        + [RefData("deta", "fig3b-", x) for x in ["CM1", "CM2", "CM3"]]
-        + [RefData("dzeta", "fig3c-", x) for x in ["CM1", "CM2", "CM3"]]
-        + [RefData("dt", "fig3d-", x) for x in ["CM1", "CM2", "CM3"]]
+        [RefData("dxip", "fig3a-", x) for x in ["CM1", "CM2", "CM3"]]
+        + [RefData("detap", "fig3b-", x) for x in ["CM1", "CM2", "CM3"]]
+        + [RefData("dzetap", "fig3c-", x) for x in ["CM1", "CM2", "CM3"]]
+        + [RefData("dtp", "fig3d-", x) for x in ["CM1", "CM2", "CM3"]]
         + [
             RefData("cp", "fig4a-", x, sort="polar")
             for x in ["CM1", "CM2", "CM3", "exp", "lesfoil"]
@@ -184,19 +184,17 @@ if __name__ == "__main__":
     # Estimate wall units (utau/nu)
     N_zeta_CM3 = 705
     L_span = 0.0493
-    dzeta_physical = L_span / (N_zeta_CM3 - 1)
-    rd_zeta = RefData("dzeta", "fig3c-", "CM3")
-    wall_units_zeta = rd_zeta.ydata() / dzeta_physical
+    dzeta = L_span / (N_zeta_CM3 - 1)
+    rd_zeta = RefData("dzetap", "fig3c-", "CM3")
+    wall_units_zeta = rd_zeta.ydata() / dzeta
 
-    rd_eta = RefData("deta", "fig3b-", "CM3")
+    rd_eta = RefData("detap", "fig3b-", "CM3")
     eta_interp = interpolate.interp1d(
         rd_zeta.xdata(), rd_zeta.ydata(), bounds_error=False
     )
-    deta_physical = rd_eta.ydata() / eta_interp(rd_eta.xdata()) * dzeta_physical
-    deta_physical_mean = np.mean(
-        deta_physical[np.where((0.3 < rd_eta.xdata()) & (rd_eta.xdata() < 0.7))]
-    )
-    wall_units_eta = rd_eta.ydata() / deta_physical_mean
+    deta = rd_eta.ydata() / eta_interp(rd_eta.xdata()) * dzeta
+    deta_mean = np.mean(deta[np.where((0.3 < rd_eta.xdata()) & (rd_eta.xdata() < 0.7))])
+    wall_units_eta = rd_eta.ydata() / deta_mean
 
     wall_units_zeta_interp = interpolate.interp1d(
         rd_zeta.xdata(), wall_units_zeta, bounds_error=False
@@ -226,18 +224,38 @@ if __name__ == "__main__":
         xnew, wall_units_mean, lw=2, color=cmap[2], ls="--", label="Mean",
     )
 
-    plt.figure("deta_physical")
+    rd_dxip = RefData("dxip", "fig3a-", "CM3")
+    plt.figure("dxi")
     plt.plot(
-        rd_eta.xdata(), deta_physical, lw=2, color=cmap[0], label=labels[rd_eta.val],
+        rd_dxip.xdata(),
+        rd_dxip.ydata() / wall_units_mean_interp(rd_dxip.xdata()),
+        lw=2,
+        color=cmap[0],
+        label=labels[rd_dxip.val] + " estimate",
+    )
+    plt.figure("deta")
+    plt.plot(
+        rd_eta.xdata(),
+        deta,
+        lw=2,
+        color=cmap[0],
+        label=labels[rd_eta.val] + " estimate",
     )
     plt.axhline(
-        deta_physical_mean,
-        xmin=-100,
-        xmax=100,
+        deta_mean, xmin=-100, xmax=100, lw=2, color=cmap[-1], ls="--", label="Mean",
+    )
+    plt.figure("dzeta")
+    plt.axhline(
+        dzeta, xmin=-100, xmax=100, lw=2, color=cmap[0], label=labels[rd_zeta.val],
+    )
+    rd_dtp = RefData("dtp", "fig3d-", "CM3")
+    plt.figure("dt")
+    plt.plot(
+        rd_dtp.xdata(),
+        rd_dtp.ydata() / wall_units_mean_interp(rd_dtp.xdata()),
         lw=2,
-        color=cmap[-1],
-        ls="--",
-        label="Mean",
+        color=cmap[0],
+        label=labels[rd_dxip.val] + " estimate",
     )
 
     # Nalu-Wind data
@@ -250,6 +268,7 @@ if __name__ == "__main__":
     re = rho0 * u0 * cord / mu
     aoa = 13.3
     rotcen = 0.0
+    deta = 0.000011813977015662547  # from the PW mesh
 
     cpcf = pd.read_csv(args.fname)
     cpcf["cf"] = cpcf.tauw / dynPres
@@ -268,6 +287,17 @@ if __name__ == "__main__":
     )
     cpcf["cfxp"] = cpcf.cfx * crdvec[0] + cpcf.cfy * crdvec[1]
     cpcf["cfyp"] = -cpcf.cfx * crdvec[1] + cpcf.cfy * crdvec[0]
+    cpcf["wall_units"] = wall_units_mean_interp(cpcf.xovc)
+    cpcf["dx"] = np.diff(cpcf.x, append=cpcf.x.iloc[0])
+    cpcf["dy"] = np.diff(cpcf.y, append=cpcf.y.iloc[0])
+    cpcf["dxi"] = np.sqrt(cpcf.dx ** 2 + cpcf.dy ** 2)
+    cpcf["deta"] = deta
+    cpcf["dzeta"] = cpcf.dz
+    cpcf["dt"] = dt
+    cpcf["dxip"] = cpcf.dxi * cpcf.wall_units
+    cpcf["detap"] = cpcf.deta * cpcf.wall_units
+    cpcf["dzetap"] = cpcf.dzeta * cpcf.wall_units
+    cpcf["dtp"] = cpcf.dt * cpcf.wall_units
 
     idx_xmax = np.argmax(cpcf.xovc)
     upper = np.where(
@@ -275,6 +305,16 @@ if __name__ == "__main__":
         | ((cpcf.yovc > cpcf.yovc.iloc[idx_xmax]) & (cpcf.xovc > 0.5))
     )
     lower = [i for i in range(len(cpcf)) if i not in upper[0].tolist()]
+
+    for val in ["dxip", "detap", "dzetap", "dtp", "dxi", "deta", "dzeta", "dt"]:
+        plt.figure(val)
+        plt.plot(
+            cpcf.xovc.iloc[upper],
+            cpcf[val].iloc[upper],
+            lw=2,
+            color=cmap[3],
+            label=f"{model}",
+        )
 
     plt.figure("cp")
     p = plt.plot(cpcf.xovc, -cpcf.cp, lw=2, color=cmap[3], label=f"{model}",)
@@ -309,7 +349,7 @@ if __name__ == "__main__":
     fname = "plots.pdf"
     with PdfPages(fname) as pdf:
 
-        plt.figure("dxi")
+        plt.figure("dxip")
         ax = plt.gca()
         plt.xlabel(r"$x/c$", fontsize=22, fontweight="bold")
         plt.ylabel(r"$\Delta \xi^+$", fontsize=22, fontweight="bold")
@@ -320,7 +360,7 @@ if __name__ == "__main__":
         plt.tight_layout()
         pdf.savefig(dpi=300)
 
-        plt.figure("deta")
+        plt.figure("detap")
         ax = plt.gca()
         plt.xlabel(r"$x/c$", fontsize=22, fontweight="bold")
         plt.ylabel(r"$\Delta \eta^+$", fontsize=22, fontweight="bold")
@@ -331,7 +371,7 @@ if __name__ == "__main__":
         plt.tight_layout()
         pdf.savefig(dpi=300)
 
-        plt.figure("dzeta")
+        plt.figure("dzetap")
         ax = plt.gca()
         plt.xlabel(r"$x/c$", fontsize=22, fontweight="bold")
         plt.ylabel(r"$\Delta \zeta^+$", fontsize=22, fontweight="bold")
@@ -342,7 +382,7 @@ if __name__ == "__main__":
         plt.tight_layout()
         pdf.savefig(dpi=300)
 
-        plt.figure("dt")
+        plt.figure("dtp")
         ax = plt.gca()
         plt.xlabel(r"$x/c$", fontsize=22, fontweight="bold")
         plt.ylabel(r"$\Delta t^+$", fontsize=22, fontweight="bold")
@@ -364,10 +404,43 @@ if __name__ == "__main__":
         plt.tight_layout()
         pdf.savefig(dpi=300)
 
-        plt.figure("deta_physical")
+        plt.figure("dxi")
+        ax = plt.gca()
+        plt.xlabel(r"$x/c$", fontsize=22, fontweight="bold")
+        plt.ylabel(r"$\Delta \xi$", fontsize=22, fontweight="bold")
+        plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
+        plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
+        plt.xlim([0, 1])
+        legend = ax.legend(loc="best")
+        plt.tight_layout()
+        pdf.savefig(dpi=300)
+
+        plt.figure("deta")
         ax = plt.gca()
         plt.xlabel(r"$x/c$", fontsize=22, fontweight="bold")
         plt.ylabel(r"$\Delta \eta$", fontsize=22, fontweight="bold")
+        plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
+        plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
+        plt.xlim([0, 1])
+        legend = ax.legend(loc="best")
+        plt.tight_layout()
+        pdf.savefig(dpi=300)
+
+        plt.figure("dzeta")
+        ax = plt.gca()
+        plt.xlabel(r"$x/c$", fontsize=22, fontweight="bold")
+        plt.ylabel(r"$\Delta \zeta$", fontsize=22, fontweight="bold")
+        plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
+        plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
+        plt.xlim([0, 1])
+        legend = ax.legend(loc="best")
+        plt.tight_layout()
+        pdf.savefig(dpi=300)
+
+        plt.figure("dt")
+        ax = plt.gca()
+        plt.xlabel(r"$x/c$", fontsize=22, fontweight="bold")
+        plt.ylabel(r"$\Delta t$", fontsize=22, fontweight="bold")
         plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
         plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
         plt.xlim([0, 1])

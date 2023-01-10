@@ -71,13 +71,16 @@ if __name__ == "__main__":
     num_time_steps = mesh.stkio.num_time_steps
     max_time = mesh.stkio.max_time
     tsteps = np.array(mesh.stkio.time_steps)
-    printer(f"""Num. time steps = {num_time_steps}\nMax. time step  = {max_time}""")
+    printer(f"""Num. time steps = {num_time_steps}""")
+    printer(f"""Max. time step  = {max_time}""")
+    printer(f"""All steps in file: {tsteps}""")
 
     # Figure out the times over which to average
     if args.factor > 0:
         tmp_tavg = np.sort(
             tsteps[-1] - args.flowthrough * args.factor * np.arange(args.navg)
         )
+        tmp_tavg = tmp_tavg[tmp_tavg >= tsteps[0]]
         dist = np.abs(np.array(tsteps)[:, np.newaxis] - tmp_tavg)
         idx = dist.argmin(axis=0)
     else:
@@ -126,8 +129,10 @@ if __name__ == "__main__":
         if not os.path.exists(odir):
             os.makedirs(odir)
         df = pd.DataFrame(np.vstack(lst), columns=names)
+        dz = np.diff(np.unique(df.z)).min()
         df = df.groupby("x", as_index=False).mean().sort_values(by=["x"])
         center = [0.1, 0.0]
         df["theta"] = np.arctan2(df.x - center[0], df.y - center[1])
+        df["dz"] = dz
         wingname = os.path.join(odir, "wing.dat")
         df.to_csv(wingname, index=False)

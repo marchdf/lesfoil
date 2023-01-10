@@ -6,3 +6,4 @@ forces.dat
 restart/
 results/
 out.lesfoil_*
+__pycache__

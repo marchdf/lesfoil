@@ -26,7 +26,7 @@ def resample(df):
 
 
 def write(df, fname):
-    df.to_csv(fname, sep=" ", index=False, header=False, columns=["x","y","z"])
+    df.to_csv(fname, sep=" ", index=False, header=False, columns=["x", "y", "z"])
     with open(fname, "r+") as f:
         content = f.read()
         f.seek(0, 0)
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     # lower and upper
     x0, y0 = 0.0, 0.0
     x1, y1 = 1.0, -0.011846
-    m = (y1-y0)/(x1-x0)
+    m = (y1 - y0) / (x1 - x0)
     p = y0 - m * x0
     ydivider = m * df.x.values + p
     df_upper = df[df.y >= ydivider]
@@ -74,9 +74,9 @@ if __name__ == "__main__":
     plt.figure()
     ax = plt.gca()
     plt.plot(df_upper.x, df_upper.y, "o", ms=1)
-    #plt.plot(dff_upper.x, dff_upper.y, "s", ms=0.1)
+    # plt.plot(dff_upper.x, dff_upper.y, "s", ms=0.1)
     plt.plot(df_lower.x, df_lower.y, "o", ms=1)
-    #plt.plot(dff_lower.x, dff_lower.y, "s", ms=0.1)
+    # plt.plot(dff_lower.x, dff_lower.y, "s", ms=0.1)
     ax.axis("equal")
-    #ax.set(xlim=(0, 0.05), ylim=(-0.05, 0.05))
+    # ax.set(xlim=(0, 0.05), ylim=(-0.05, 0.05))
     plt.savefig("lesfoil.png", dpi=300)
