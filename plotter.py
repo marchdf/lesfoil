@@ -266,8 +266,6 @@ if __name__ == "__main__":
     tau = cord / u0
     dynPres = rho0 * 0.5 * u0 * u0
     re = rho0 * u0 * cord / mu
-    aoa = 13.3
-    rotcen = 0.0
     deta = 0.000011813977015662547  # from the PW mesh
 
     cpcf = pd.read_csv(args.fname)
@@ -276,17 +274,9 @@ if __name__ == "__main__":
     cpcf["cfy"] = cpcf.tauwy / dynPres
     cpcf["cp"] = cpcf.pressure / dynPres
     cpcf.sort_values(by=["theta"], inplace=True)
-    cord_angle = np.radians(aoa)
-    crdvec = np.array([np.cos(cord_angle), -np.sin(cord_angle)])
-    tan_crdvec = np.array([np.sin(cord_angle), np.cos(cord_angle)])
-    cpcf["xovc"] = (
-        np.dot(np.asarray([cpcf.x - rotcen, cpcf.y]).T, crdvec) / cord + rotcen
+    cpcf["xovc"], cpcf["yovc"] = utilities.ccw_rotation(
+        cpcf.x, cpcf.y, angle=utilities.airfoil_aoa(), scale=cord
     )
-    cpcf["yovc"] = (
-        np.dot(np.asarray([cpcf.x - rotcen, cpcf.y]).T, tan_crdvec) / cord + rotcen
-    )
-    cpcf["cfxp"] = cpcf.cfx * crdvec[0] + cpcf.cfy * crdvec[1]
-    cpcf["cfyp"] = -cpcf.cfx * crdvec[1] + cpcf.cfy * crdvec[0]
     cpcf["wall_units"] = wall_units_mean_interp(cpcf.xovc)
     cpcf["dx"] = np.diff(cpcf.x, append=cpcf.x.iloc[0])
     cpcf["dy"] = np.diff(cpcf.y, append=cpcf.y.iloc[0])
@@ -322,8 +312,8 @@ if __name__ == "__main__":
     plt.figure("airfoil")
     p = plt.plot(cpcf.x, cpcf.y, lw=2, color=cmap[0], label="physical",)
     p = plt.plot(
-        cpcf.xovc.iloc[lower],
-        cpcf.yovc.iloc[lower],
+        cpcf.iloc[lower].sort_values(by=["xovc"]).xovc,
+        cpcf.iloc[lower].sort_values(by=["xovc"]).yovc,
         lw=2,
         color=cmap[1],
         label="rotated, lower",
