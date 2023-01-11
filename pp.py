@@ -6,7 +6,43 @@ import numpy as np
 import pandas as pd
 from mpi4py import MPI
 import stk
+from scipy import interpolate
 from scipy.interpolate import griddata
+import utilities
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
+
+plt.rc("text", usetex=True)
+cmap_med = [
+    "#F15A60",
+    "#7AC36A",
+    "#5A9BD4",
+    "#FAA75B",
+    "#9E67AB",
+    "#CE7058",
+    "#D77FB4",
+    "#737373",
+]
+cmap = [
+    "#EE2E2F",
+    "#008C48",
+    "#185AA9",
+    "#F47D23",
+    "#662C91",
+    "#A21D21",
+    "#B43894",
+    "#010202",
+]
+dashseq = [
+    (None, None),
+    [10, 5],
+    [10, 4, 3, 4],
+    [3, 3],
+    [10, 4, 3, 4, 3, 4],
+    [3, 3],
+    [3, 3],
+]
+markertype = ["s", "d", "o", "p", "h"]
 
 
 def p0_printer(par):
@@ -58,6 +94,11 @@ if __name__ == "__main__":
     rank = comm.Get_rank()
     par = stk.Parallel.initialize()
     printer = p0_printer(par)
+
+    odir = os.path.join(os.getcwd(), "output")
+    if rank == 0:
+        if not os.path.exists(odir):
+            os.makedirs(odir)
 
     mesh = stk.StkMesh(par)
     printer("Reading meta data for mesh: ", args.mfile)
@@ -124,10 +165,6 @@ if __name__ == "__main__":
     lst = comm.gather(wingdata, root=0)
     comm.Barrier()
     if rank == 0:
-
-        odir = os.path.join(os.getcwd(), "output")
-        if not os.path.exists(odir):
-            os.makedirs(odir)
         df = pd.DataFrame(np.vstack(lst), columns=names)
         dz = np.diff(np.unique(df.z)).min()
         df = df.groupby("x", as_index=False).mean().sort_values(by=["x"])
