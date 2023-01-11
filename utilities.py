@@ -44,6 +44,14 @@ def cord_locations():
     return [0.1, 0.15, 0.2, 0.3, 0.5, 0.7, 0.825, 0.87, 0.93, 0.99]
 
 
+def lo_cord_locations():
+    return [x for x in cord_locations() if x < 0.55]
+
+
+def hi_cord_locations():
+    return [x for x in cord_locations() if x >= 0.55]
+
+
 def lo_idx(x, val):
     lo = np.argmin(np.fabs(x - val))
     if x[lo] >= val:

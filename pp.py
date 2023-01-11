@@ -8,7 +8,7 @@ from mpi4py import MPI
 import stk
 from scipy import interpolate
 from scipy.interpolate import griddata
-import utilities
+import utilities as ut
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
@@ -88,6 +88,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     fdir = os.path.dirname(args.mfile)
+    mname = os.path.splitext(os.path.basename(args.mfile))[0]
 
     comm = MPI.COMM_WORLD
     size = comm.Get_size()
@@ -95,7 +96,7 @@ if __name__ == "__main__":
     par = stk.Parallel.initialize()
     printer = p0_printer(par)
 
-    odir = os.path.join(os.getcwd(), "output")
+    odir = os.path.join(os.getcwd(), f"output-{mname}")
     if rank == 0:
         if not os.path.exists(odir):
             os.makedirs(odir)
@@ -173,3 +174,234 @@ if __name__ == "__main__":
         df["dz"] = dz
         wingname = os.path.join(odir, "wing.dat")
         df.to_csv(wingname, index=False)
+
+    # Extract velocity profiles
+    is_ams = not mesh.meta.get_field("average_velocity").is_null
+    vel_name = "velocity"
+    dudx_name = "dudx"
+    field_names = ["u", "v", "w", "tke", "sdr", "tau_xx", "tau_xy", "tau_yy"]
+    fld_data = None
+    for tstep in tavg:
+        ftime, missing = mesh.stkio.read_defined_input_fields(tstep)
+        printer(f"""Loading {vel_name} fields for time: {ftime}""")
+
+        interior = mesh.meta.get_part("flow-hex")
+        sel = interior & mesh.meta.locally_owned_part
+        coords = mesh.meta.coordinate_field
+        turbulent_ke = mesh.meta.get_field("turbulent_ke")
+        specific_dissipation_rate = mesh.meta.get_field("specific_dissipation_rate")
+        fields = [
+            mesh.meta.get_field(vel_name),
+            turbulent_ke,
+            specific_dissipation_rate,
+        ]
+        dveldx = mesh.meta.get_field(dudx_name)
+        tvisc = mesh.meta.get_field("turbulent_viscosity")
+        k_ratio = mesh.meta.get_field("k_ratio")
+        names = ["x", "y", "z"] + field_names
+        nnodes = sum(bkt.size for bkt in mesh.iter_buckets(sel, stk.StkRank.NODE_RANK))
+
+        cnt = 0
+        data = np.zeros((nnodes, len(names)))
+
+        for bkt in mesh.iter_buckets(sel, stk.StkRank.NODE_RANK):
+            arr = coords.bkt_view(bkt)
+            for fld in fields:
+                vals = fld.bkt_view(bkt)
+                if len(vals.shape) == 1:  # its a scalar
+                    vals = vals.reshape(-1, 1)
+                arr = np.hstack((arr, vals))
+
+            # tauSGRS_ij = coeffSGRS *(avgdudx[:, i * 3 + j] + avgdudx[:, j * 3 + i]) + 2/3 rho k delta_ij
+            dudx = dveldx.bkt_view(bkt)
+            nut = tvisc.bkt_view(bkt)
+            tke = turbulent_ke.bkt_view(bkt)
+            if is_ams:
+                alpha = k_ratio.bkt_view(bkt) ** 1.7
+                krat = k_ratio.bkt_view(bkt)
+            else:
+                alpha = 1
+                krat = 1
+            rho = 1.0
+            coeffSGRS = alpha * (2.0 - alpha) * nut / rho
+            diag_tke = (-2.0 / 3.0 * rho * tke * krat).reshape(-1, 1)
+            tausgrs_xx = (coeffSGRS * (dudx[:, 0] + dudx[:, 0])).reshape(
+                -1, 1
+            ) + diag_tke
+            tausgrs_xy = (coeffSGRS * (dudx[:, 1] + dudx[:, 3])).reshape(-1, 1)
+            tausgrs_yy = (coeffSGRS * (dudx[:, 4] + dudx[:, 4])).reshape(
+                -1, 1
+            ) + diag_tke
+            arr = np.hstack((arr, tausgrs_xx))
+            arr = np.hstack((arr, tausgrs_xy))
+            arr = np.hstack((arr, tausgrs_yy))
+            data[cnt : cnt + bkt.size, :] = arr
+            cnt += bkt.size
+
+        if fld_data is None:
+            fld_data = np.zeros(data.shape)
+        fld_data += data / len(tavg)
+
+    # Load airfoil shape
+    upper = pd.read_csv(
+        "./meshes/lesfoil_upper.dat",
+        header=None,
+        names=["x", "y", "z"],
+        skiprows=1,
+        delim_whitespace=True,
+    )
+    upper.sort_values(by=["x"])
+    upper_y_interp = interpolate.interp1d(upper.x, upper.y, bounds_error=False)
+
+    comm.Barrier()
+    if rank == 0:
+        plt.figure("airfoil")
+        p = plt.plot(upper.x, upper.y, lw=2, color="red", label="upper",)
+
+    # Subset the velocities on planes
+    ninterp = 200
+    planes = []
+    for xloc in ut.cord_locations():
+
+        yloc = upper_y_interp(xloc)
+
+        # get the coords without the aoa rotation
+        xp, yp = ut.ccw_rotation(fld_data[:, 0], fld_data[:, 1], angle=ut.airfoil_aoa())
+
+        # take the data above the cord vector of the aifoil and in a radius around (xloc, yloc)
+        m_airfoil = (upper.y.iloc[-1] - upper.y.iloc[0]) / (
+            upper.x.iloc[-1] - upper.x.iloc[0]
+        )
+        radius = 0.1
+        sub = fld_data[
+            (yp >= m_airfoil * xp)
+            & (((xp - xloc) ** 2 + (yp - yloc) ** 2) < radius ** 2),
+            :,
+        ]
+
+        lst = comm.gather(sub, root=0)
+        comm.Barrier()
+        if rank == 0:
+            # normal to upper part of the airfoil
+            lo_idx = ut.lo_idx(upper.x.to_numpy(), xloc)
+            tgt = (upper.iloc[lo_idx + 1] - upper.iloc[lo_idx]).to_numpy()
+            tgt /= np.linalg.norm(tgt)
+            nml = [-tgt[1], tgt[0], 0]
+
+            # equation of normal
+            m = nml[1] / nml[0]
+            p = yloc - m * xloc
+            deta = 0.095
+            dxnml = np.sqrt(deta ** 2 / (1 + m ** 2))
+            xnml = (
+                np.linspace(xloc - dxnml, xloc, ninterp)
+                if m < 0
+                else np.linspace(xloc, xloc + dxnml, ninterp)
+            )
+            ynml = m * xnml + p
+
+            plt.figure("airfoil")
+            p = plt.plot(
+                xloc,
+                yloc,
+                lw=0,
+                color="black",
+                linestyle="None",
+                marker="o",
+                mfc="None",
+                ms=6,
+            )
+            p = plt.plot(xnml, ynml, lw=2, color="green", label="normal")
+
+            df = (
+                pd.DataFrame(np.vstack(lst), columns=names)
+                .groupby(["x", "y"], as_index=False)
+                .mean()
+                .sort_values(by=["x", "y"])
+            )
+
+            # rotate the data to remove the aoa rotation
+            df["xa"], df["ya"] = ut.ccw_rotation(df.x, df.y, angle=ut.airfoil_aoa())
+            df["ua"], df["va"] = ut.ccw_rotation(df.u, df.v, angle=ut.airfoil_aoa())
+
+            # rotate data so that the tangent is horizontal and the normal is vertical
+            df["x"] = (df.xa - xloc) * tgt[0] + (df.ya - yloc) * tgt[1]
+            df["y"] = -(df.xa - xloc) * tgt[1] + (df.ya - yloc) * tgt[0]
+            df["u"] = df.ua * tgt[0] + df.va * tgt[1]
+            df["v"] = -df.ua * tgt[1] + df.va * tgt[0]
+            df.drop(columns=["xa", "ya", "ua", "va"])
+            xp = (upper.x - xloc) * tgt[0] + (upper.y - yloc) * tgt[1]
+            yp = -(upper.x - xloc) * tgt[1] + (upper.y - yloc) * tgt[0]
+            xi = np.array([0])
+            yi = np.logspace(-5, np.log10(deta), ninterp)
+            plt.figure(f"airfoil-{xloc}")
+            plt.tripcolor(df.x, df.y, df.u, shading="gouraud")
+            p = plt.plot(xi * np.ones(yi.shape), yi, lw=2, color="red")
+            p = plt.plot(xp, yp, lw=2, color="green", label="Rotated airfoil")
+            p = plt.plot(
+                0.0,
+                0.0,
+                lw=0,
+                color="black",
+                linestyle="None",
+                marker="o",
+                mfc="None",
+                ms=6,
+            )
+
+            means = {}
+            for fld in field_names:
+                means[fld] = griddata(
+                    (df.x, df.y),
+                    df[fld],
+                    (xi[None, :], yi[:, None]),
+                    method="cubic",
+                    fill_value=0,
+                ).flatten()
+            means["xloc"] = xloc * np.ones(yi.shape)
+            means["yloc"] = yloc * np.ones(yi.shape)
+            means["eta"] = yi
+            planes.append(pd.DataFrame(means))
+
+    # Extract fluctuating velocities
+    comm.Barrier()
+    if rank == 0:
+        for plane in planes:
+            plane["upup"] = np.zeros(plane.u.shape)
+            plane["vpvp"] = np.zeros(plane.u.shape)
+            plane["upvp"] = np.zeros(plane.u.shape)
+
+    comm.Barrier()
+    if rank == 0:
+        df = pd.concat(planes)
+        df.to_csv(os.path.join(odir, "profiles.dat"), index=False)
+
+    comm.Barrier()
+    if rank == 0:
+        fname = "pp.pdf"
+        with PdfPages(fname) as pdf:
+            plt.figure("airfoil")
+            ax = plt.gca()
+            plt.xlabel(r"$x/c$", fontsize=22, fontweight="bold")
+            plt.ylabel(r"$y / c$", fontsize=22, fontweight="bold")
+            plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
+            plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
+            # remove duplicate labels
+            handles, labels = ax.get_legend_handles_labels()
+            by_label = dict(zip(labels, handles))
+            legend = ax.legend(by_label.values(), by_label.keys(), loc="best")
+            ax.axis("equal")
+            plt.tight_layout()
+            pdf.savefig(dpi=300)
+
+            for xloc in ut.cord_locations():
+                plt.figure(f"airfoil-{xloc}")
+                ax = plt.gca()
+                plt.xlabel(r"$(x-x_c)' / c$", fontsize=22, fontweight="bold")
+                plt.ylabel(r"$(y-y_c)' / c$", fontsize=22, fontweight="bold")
+                plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
+                plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
+                legend = ax.legend(loc="best")
+                ax.axis("equal")
+                plt.tight_layout()
+                pdf.savefig(dpi=300)

@@ -7,10 +7,13 @@ from matplotlib.backends.backend_pdf import PdfPages
 import pandas as pd
 import numpy as np
 from scipy import interpolate
-import utilities
+import utilities as ut
+import glob
+import os
 
 
 plt.rc("text", usetex=True)
+plt.rcParams.update({"figure.max_open_warning": 0})
 cmap_med = [
     "#F15A60",
     "#7AC36A",
@@ -83,10 +86,7 @@ if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser(description="A simple plot tool")
     parser.add_argument(
-        "-f", "--fname", help="Data file to plot", required=True, type=str
-    )
-    parser.add_argument(
-        "-y", "--yname", help="Input file used", required=True, type=str
+        "-f", "--fdir", help="Folder with data files", required=True, type=str
     )
     args = parser.parse_args()
 
@@ -259,7 +259,10 @@ if __name__ == "__main__":
     )
 
     # Nalu-Wind data
-    u0, rho0, mu, turb_model, dt = utilities.parse_ic(args.yname)
+    yname = glob.glob(os.path.join(args.fdir, "*.yaml"))[0]
+    fname = os.path.join(args.fdir, "wing.dat")
+    pname = os.path.join(args.fdir, "profiles.dat")
+    u0, rho0, mu, turb_model, dt = ut.parse_ic(yname)
     model = turb_model.upper().replace("_", "-")
     cord = 1.0
     refArea = 0.05
@@ -268,14 +271,15 @@ if __name__ == "__main__":
     re = rho0 * u0 * cord / mu
     deta = 0.000011813977015662547  # from the PW mesh
 
-    cpcf = pd.read_csv(args.fname)
+    # wing data
+    cpcf = pd.read_csv(fname)
     cpcf["cf"] = cpcf.tauw / dynPres
     cpcf["cfx"] = cpcf.tauwx / dynPres
     cpcf["cfy"] = cpcf.tauwy / dynPres
     cpcf["cp"] = cpcf.pressure / dynPres
     cpcf.sort_values(by=["theta"], inplace=True)
-    cpcf["xovc"], cpcf["yovc"] = utilities.ccw_rotation(
-        cpcf.x, cpcf.y, angle=utilities.airfoil_aoa(), scale=cord
+    cpcf["xovc"], cpcf["yovc"] = ut.ccw_rotation(
+        cpcf.x, cpcf.y, angle=ut.airfoil_aoa(), scale=cord
     )
     cpcf["wall_units"] = wall_units_mean_interp(cpcf.xovc)
     cpcf["dx"] = np.diff(cpcf.x, append=cpcf.x.iloc[0])
@@ -309,6 +313,15 @@ if __name__ == "__main__":
     plt.figure("cp")
     p = plt.plot(cpcf.xovc, -cpcf.cp, lw=2, color=cmap[3], label=f"{model}",)
 
+    plt.figure("cf")
+    p = plt.plot(
+        cpcf.xovc.iloc[upper],
+        cpcf.cfx.iloc[upper],
+        lw=2,
+        color=cmap[3],
+        label=f"{model}",
+    )
+
     plt.figure("airfoil")
     p = plt.plot(cpcf.x, cpcf.y, lw=2, color=cmap[0], label="physical",)
     p = plt.plot(
@@ -326,252 +339,98 @@ if __name__ == "__main__":
         label="rotated, upper",
     )
 
-    plt.figure("cf")
-    p = plt.plot(
-        cpcf.xovc.iloc[upper],
-        cpcf.cfx.iloc[upper],
-        lw=2,
-        color=cmap[3],
-        label=f"{model}",
-    )
+    # profiles
+    ndf = pd.read_csv(pname)
+    grouped = ndf.groupby(["xloc"])
+    # "urms":0.3, "vrms":0.3,"uvrms":0.014,
+    fields = {"u": 1.4, "tke": 0.03, "sdr": 0.0}
+    for k, (xloc, group) in enumerate(grouped):
+        sfx = "a" if xloc in ut.lo_cord_locations() else "b"
+        cnt = (
+            ut.lo_cord_locations().index(xloc)
+            if xloc in ut.lo_cord_locations()
+            else ut.hi_cord_locations().index(xloc)
+        )
+
+        for field, offset in fields.items():
+            plt.figure(f"{field}-{sfx}")
+            p = plt.plot(
+                group[field] + cnt * offset,
+                group.eta,
+                lw=2,
+                color=cmap[3],
+                label=f"{model}",
+            )
+            p[0].set_dashes(dashseq[0])
 
     # Save the plots
     fname = "plots.pdf"
     with PdfPages(fname) as pdf:
 
-        plt.figure("dxip")
-        ax = plt.gca()
-        plt.xlabel(r"$x/c$", fontsize=22, fontweight="bold")
-        plt.ylabel(r"$\Delta \xi^+$", fontsize=22, fontweight="bold")
-        plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
-        plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
-        plt.xlim([0, 1])
-        legend = ax.legend(loc="best")
-        plt.tight_layout()
-        pdf.savefig(dpi=300)
+        plots = {
+            "dxip": {"ylabel": r"$\Delta \xi^+$",},
+            "detap": {"ylabel": r"$\Delta \eta^+$",},
+            "dzetap": {"ylabel": r"$\Delta \zeta^+$",},
+            "dtp": {"ylabel": r"$\Delta t^+$",},
+            "wall_units": {"ylabel": r"$u_\tau / \nu$",},
+            "dxi": {"ylabel": r"$\Delta \xi$",},
+            "deta": {"ylabel": r"$\Delta \eta$",},
+            "dzeta": {"ylabel": r"$\Delta \zeta$",},
+            "dt": {"ylabel": r"$\Delta t$",},
+            "cp": {"ylabel": r"$-C_p$",},
+            "cf": {"ylabel": r"$C_f$",},
+        }
+        for name, plot in plots.items():
+            plt.figure(name)
+            ax = plt.gca()
+            plt.xlabel(r"$x/c$", fontsize=22, fontweight="bold")
+            plt.ylabel(plot["ylabel"], fontsize=22, fontweight="bold")
+            plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
+            plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
+            plt.xlim([0, 1])
+            legend = ax.legend(loc="best")
+            plt.tight_layout()
+            pdf.savefig(dpi=300)
 
-        plt.figure("detap")
-        ax = plt.gca()
-        plt.xlabel(r"$x/c$", fontsize=22, fontweight="bold")
-        plt.ylabel(r"$\Delta \eta^+$", fontsize=22, fontweight="bold")
-        plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
-        plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
-        plt.xlim([0, 1])
-        legend = ax.legend(loc="best")
-        plt.tight_layout()
-        pdf.savefig(dpi=300)
-
-        plt.figure("dzetap")
-        ax = plt.gca()
-        plt.xlabel(r"$x/c$", fontsize=22, fontweight="bold")
-        plt.ylabel(r"$\Delta \zeta^+$", fontsize=22, fontweight="bold")
-        plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
-        plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
-        plt.xlim([0, 1])
-        legend = ax.legend(loc="best")
-        plt.tight_layout()
-        pdf.savefig(dpi=300)
-
-        plt.figure("dtp")
-        ax = plt.gca()
-        plt.xlabel(r"$x/c$", fontsize=22, fontweight="bold")
-        plt.ylabel(r"$\Delta t^+$", fontsize=22, fontweight="bold")
-        plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
-        plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
-        plt.xlim([0, 1])
-        legend = ax.legend(loc="best")
-        plt.tight_layout()
-        pdf.savefig(dpi=300)
-
-        plt.figure("wall_units")
-        ax = plt.gca()
-        plt.xlabel(r"$x/c$", fontsize=22, fontweight="bold")
-        plt.ylabel(r"$u_\tau / \nu$", fontsize=22, fontweight="bold")
-        plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
-        plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
-        plt.xlim([0, 1])
-        legend = ax.legend(loc="best")
-        plt.tight_layout()
-        pdf.savefig(dpi=300)
-
-        plt.figure("dxi")
-        ax = plt.gca()
-        plt.xlabel(r"$x/c$", fontsize=22, fontweight="bold")
-        plt.ylabel(r"$\Delta \xi$", fontsize=22, fontweight="bold")
-        plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
-        plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
-        plt.xlim([0, 1])
-        legend = ax.legend(loc="best")
-        plt.tight_layout()
-        pdf.savefig(dpi=300)
-
-        plt.figure("deta")
-        ax = plt.gca()
-        plt.xlabel(r"$x/c$", fontsize=22, fontweight="bold")
-        plt.ylabel(r"$\Delta \eta$", fontsize=22, fontweight="bold")
-        plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
-        plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
-        plt.xlim([0, 1])
-        legend = ax.legend(loc="best")
-        plt.tight_layout()
-        pdf.savefig(dpi=300)
-
-        plt.figure("dzeta")
-        ax = plt.gca()
-        plt.xlabel(r"$x/c$", fontsize=22, fontweight="bold")
-        plt.ylabel(r"$\Delta \zeta$", fontsize=22, fontweight="bold")
-        plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
-        plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
-        plt.xlim([0, 1])
-        legend = ax.legend(loc="best")
-        plt.tight_layout()
-        pdf.savefig(dpi=300)
-
-        plt.figure("dt")
-        ax = plt.gca()
-        plt.xlabel(r"$x/c$", fontsize=22, fontweight="bold")
-        plt.ylabel(r"$\Delta t$", fontsize=22, fontweight="bold")
-        plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
-        plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
-        plt.xlim([0, 1])
-        legend = ax.legend(loc="best")
-        plt.tight_layout()
-        pdf.savefig(dpi=300)
-
-        plt.figure("cp")
-        ax = plt.gca()
-        plt.xlabel(r"$x/c$", fontsize=22, fontweight="bold")
-        plt.ylabel(r"$-C_p$", fontsize=22, fontweight="bold")
-        plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
-        plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
-        plt.xlim([0, 1])
-        legend = ax.legend(loc="best")
-        plt.tight_layout()
-        pdf.savefig(dpi=300)
-
-        plt.figure("cf")
-        ax = plt.gca()
-        plt.xlabel(r"$x/c$", fontsize=22, fontweight="bold")
-        plt.ylabel(r"$C_f$", fontsize=22, fontweight="bold")
-        plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
-        plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
-        plt.xlim([0, 1])
-        legend = ax.legend(loc="best")
-        plt.tight_layout()
-        pdf.savefig(dpi=300)
-
-        plt.figure("u-a")
-        ax = plt.gca()
-        plt.xlabel(r"$\langle u \rangle / u_\infty$", fontsize=22, fontweight="bold")
-        plt.ylabel(r"$y_\eta / c$", fontsize=22, fontweight="bold")
-        plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
-        plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
-        plt.xlim([0, 7])
-        plt.ylim([0, None])
-        # remove duplicate labels
-        handles, labels = ax.get_legend_handles_labels()
-        by_label = dict(zip(labels, handles))
-        legend = ax.legend(by_label.values(), by_label.keys(), loc="best")
-        plt.tight_layout()
-        pdf.savefig(dpi=300)
-
-        plt.figure("u-b")
-        ax = plt.gca()
-        plt.xlabel(r"$\langle u \rangle / u_\infty$", fontsize=22, fontweight="bold")
-        plt.ylabel(r"$y_\eta / c$", fontsize=22, fontweight="bold")
-        plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
-        plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
-        plt.xlim([0, 7])
-        plt.ylim([0, None])
-        handles, labels = ax.get_legend_handles_labels()
-        by_label = dict(zip(labels, handles))
-        legend = ax.legend(by_label.values(), by_label.keys(), loc="best")
-        plt.tight_layout()
-        pdf.savefig(dpi=300)
-
-        plt.figure("urms-a")
-        ax = plt.gca()
-        plt.xlabel(r"$\langle u' \rangle / u_\infty$", fontsize=22, fontweight="bold")
-        plt.ylabel(r"$y_\eta / c$", fontsize=22, fontweight="bold")
-        plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
-        plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
-        plt.xlim([-0.1, 1.5])
-        plt.ylim([0, None])
-        handles, labels = ax.get_legend_handles_labels()
-        by_label = dict(zip(labels, handles))
-        legend = ax.legend(by_label.values(), by_label.keys(), loc="best")
-        plt.tight_layout()
-        pdf.savefig(dpi=300)
-
-        plt.figure("urms-b")
-        ax = plt.gca()
-        plt.xlabel(r"$\langle u' \rangle / u_\infty$", fontsize=22, fontweight="bold")
-        plt.ylabel(r"$y_\eta / c$", fontsize=22, fontweight="bold")
-        plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
-        plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
-        plt.xlim([-0.1, 1.5])
-        plt.ylim([0, None])
-        handles, labels = ax.get_legend_handles_labels()
-        by_label = dict(zip(labels, handles))
-        legend = ax.legend(by_label.values(), by_label.keys(), loc="best")
-        plt.tight_layout()
-        pdf.savefig(dpi=300)
-
-        plt.figure("vrms-a")
-        ax = plt.gca()
-        plt.xlabel(r"$\langle v' \rangle / u_\infty$", fontsize=22, fontweight="bold")
-        plt.ylabel(r"$y_\eta / c$", fontsize=22, fontweight="bold")
-        plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
-        plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
-        plt.xlim([-0.1, 1.5])
-        plt.ylim([0, None])
-        handles, labels = ax.get_legend_handles_labels()
-        by_label = dict(zip(labels, handles))
-        legend = ax.legend(by_label.values(), by_label.keys(), loc="best")
-        plt.tight_layout()
-        pdf.savefig(dpi=300)
-
-        plt.figure("vrms-b")
-        ax = plt.gca()
-        plt.xlabel(r"$\langle v' \rangle / u_\infty$", fontsize=22, fontweight="bold")
-        plt.ylabel(r"$y_\eta / c$", fontsize=22, fontweight="bold")
-        plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
-        plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
-        plt.xlim([-0.1, 1.5])
-        plt.ylim([0, None])
-        handles, labels = ax.get_legend_handles_labels()
-        by_label = dict(zip(labels, handles))
-        legend = ax.legend(by_label.values(), by_label.keys(), loc="best")
-        plt.tight_layout()
-        pdf.savefig(dpi=300)
-
-        plt.figure("uvrms-a")
-        ax = plt.gca()
-        plt.xlabel(r"$\langle u'v' \rangle / u_\infty$", fontsize=22, fontweight="bold")
-        plt.ylabel(r"$y_\eta / c$", fontsize=22, fontweight="bold")
-        plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
-        plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
-        plt.xlim([-0.01, 0.07])
-        plt.ylim([0, None])
-        handles, labels = ax.get_legend_handles_labels()
-        by_label = dict(zip(labels, handles))
-        legend = ax.legend(by_label.values(), by_label.keys(), loc="best")
-        plt.tight_layout()
-        pdf.savefig(dpi=300)
-
-        plt.figure("uvrms-b")
-        ax = plt.gca()
-        plt.xlabel(r"$\langle u'v' \rangle / u_\infty$", fontsize=22, fontweight="bold")
-        plt.ylabel(r"$y_\eta / c$", fontsize=22, fontweight="bold")
-        plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
-        plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
-        plt.xlim([-0.01, 0.07])
-        plt.ylim([0, None])
-        handles, labels = ax.get_legend_handles_labels()
-        by_label = dict(zip(labels, handles))
-        legend = ax.legend(by_label.values(), by_label.keys(), loc="best")
-        plt.tight_layout()
-        pdf.savefig(dpi=300)
+        plots = {
+            "u": {"xlabel": r"$\langle u \rangle / u_\infty$", "xlim": [0, 7]},
+            "urms": {
+                "xlabel": r"$\langle u' \rangle_{rms} / u_\infty$",
+                "xlim": [-0.1, 1.5],
+            },
+            "vrms": {
+                "xlabel": r"$\langle v' \rangle_{rms} / u_\infty$",
+                "xlim": [-0.1, 1.5],
+            },
+            "uvrms": {
+                "xlabel": r"$\langle u'v' \rangle / u_\infty^2$",
+                "xlim": [-0.01, 0.07],
+            },
+            "tke": {"xlabel": r"$\langle k \rangle$", "xlim": [-0.01, 0.15]},
+            "sdr": {
+                "xlabel": r"$\langle \omega \rangle$",
+                "xlim": [1, 1e5],
+                "xlog": True,
+            },
+        }
+        for name, plot in plots.items():
+            for sub in ["a", "b"]:
+                plt.figure(f"{name}-{sub}")
+                ax = plt.gca()
+                plt.xlabel(plot["xlabel"], fontsize=22, fontweight="bold")
+                plt.ylabel(r"$y_\eta / c$", fontsize=22, fontweight="bold")
+                plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
+                plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
+                if "xlog" in plot:
+                    ax.set_xscale("log")
+                plt.xlim(plot["xlim"])
+                plt.ylim([0, 0.012] if sub == "a" else [0, 0.09])
+                # remove duplicate labels
+                handles, labels = ax.get_legend_handles_labels()
+                by_label = dict(zip(labels, handles))
+                legend = ax.legend(by_label.values(), by_label.keys(), loc="best")
+                plt.tight_layout()
+                pdf.savefig(dpi=300)
 
         plt.figure("airfoil")
         ax = plt.gca()
