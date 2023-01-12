@@ -210,7 +210,11 @@ if __name__ == "__main__":
 
     plt.figure("wall_units")
     plt.plot(
-        rd_zeta.xdata(), wall_units_zeta, lw=2, color=cmap[0], label="First estimate",
+        rd_zeta.xdata(),
+        wall_units_zeta,
+        lw=2,
+        color=cmap[0],
+        label=labels[rd_zeta.val] + " estimate",
     )
     plt.plot(
         rd_eta.xdata(),
@@ -218,10 +222,15 @@ if __name__ == "__main__":
         lw=2,
         color=cmap[1],
         ls="--",
-        label="Second estimate",
+        label=labels[rd_zeta.val] + " estimate",
     )
     plt.plot(
-        xnew, wall_units_mean, lw=2, color=cmap[2], ls="--", label="Mean",
+        xnew,
+        wall_units_mean,
+        lw=2,
+        color=cmap[2],
+        ls="--",
+        label=labels[rd_zeta.val] + " mean",
     )
 
     rd_dxip = RefData("dxip", "fig3a-", "CM3")
@@ -263,6 +272,7 @@ if __name__ == "__main__":
     fname = os.path.join(args.fdir, "wing.dat")
     pname = os.path.join(args.fdir, "profiles.dat")
     u0, rho0, mu, turb_model, dt = ut.parse_ic(yname)
+    nu = mu / rho0
     model = turb_model.upper().replace("_", "-")
     cord = 1.0
     refArea = 0.05
@@ -281,17 +291,19 @@ if __name__ == "__main__":
     cpcf["xovc"], cpcf["yovc"] = ut.ccw_rotation(
         cpcf.x, cpcf.y, angle=ut.airfoil_aoa(), scale=cord
     )
-    cpcf["wall_units"] = wall_units_mean_interp(cpcf.xovc)
+    cpcf["ref_wall_units"] = wall_units_mean_interp(cpcf.xovc)
     cpcf["dx"] = np.diff(cpcf.x, append=cpcf.x.iloc[0])
     cpcf["dy"] = np.diff(cpcf.y, append=cpcf.y.iloc[0])
     cpcf["dxi"] = np.sqrt(cpcf.dx ** 2 + cpcf.dy ** 2)
     cpcf["deta"] = deta
     cpcf["dzeta"] = cpcf.dz
     cpcf["dt"] = dt
-    cpcf["dxip"] = cpcf.dxi * cpcf.wall_units
-    cpcf["detap"] = cpcf.deta * cpcf.wall_units
-    cpcf["dzetap"] = cpcf.dzeta * cpcf.wall_units
-    cpcf["dtp"] = cpcf.dt * cpcf.wall_units
+    cpcf["dxip"] = cpcf.dxi * cpcf.ref_wall_units
+    cpcf["detap"] = cpcf.deta * cpcf.ref_wall_units
+    cpcf["dzetap"] = cpcf.dzeta * cpcf.ref_wall_units
+    cpcf["dtp"] = cpcf.dt * cpcf.ref_wall_units
+    cpcf["utau"] = np.sqrt(cpcf.tauw / rho0)
+    cpcf["wall_units"] = cpcf.utau / nu
 
     idx_xmax = np.argmax(cpcf.xovc)
     upper = np.where(
@@ -300,7 +312,17 @@ if __name__ == "__main__":
     )
     lower = [i for i in range(len(cpcf)) if i not in upper[0].tolist()]
 
-    for val in ["dxip", "detap", "dzetap", "dtp", "dxi", "deta", "dzeta", "dt"]:
+    for val in [
+        "dxip",
+        "detap",
+        "dzetap",
+        "dtp",
+        "dxi",
+        "deta",
+        "dzeta",
+        "dt",
+        "wall_units",
+    ]:
         plt.figure(val)
         plt.plot(
             cpcf.xovc.iloc[upper],
