@@ -30,7 +30,7 @@ def airfoil_aoa():
     return 13.3
 
 
-def ccw_rotation(x, y, angle=13.3, rotcenx=0.0, rotceny=0.0, scale=1.0):
+def ccw_rotation(x, y, angle=airfoil_aoa(), rotcenx=0.0, rotceny=0.0, scale=1.0):
     """Rotate counter clockwise."""
     theta = np.radians(angle)
     crdvec = np.array([np.cos(theta), -np.sin(theta)])

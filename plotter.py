@@ -4,6 +4,7 @@ import argparse
 import pathlib
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib import ticker
 import pandas as pd
 import numpy as np
 from scipy import interpolate
@@ -288,9 +289,7 @@ if __name__ == "__main__":
     cpcf["cfy"] = cpcf.tauwy / dynPres
     cpcf["cp"] = cpcf.pressure / dynPres
     cpcf.sort_values(by=["theta"], inplace=True)
-    cpcf["xovc"], cpcf["yovc"] = ut.ccw_rotation(
-        cpcf.x, cpcf.y, angle=ut.airfoil_aoa(), scale=cord
-    )
+    cpcf["xovc"], cpcf["yovc"] = ut.ccw_rotation(cpcf.x, cpcf.y)
     cpcf["ref_wall_units"] = wall_units_mean_interp(cpcf.xovc)
     cpcf["dx"] = np.diff(cpcf.x, append=cpcf.x.iloc[0])
     cpcf["dy"] = np.diff(cpcf.y, append=cpcf.y.iloc[0])
@@ -304,6 +303,12 @@ if __name__ == "__main__":
     cpcf["dtp"] = cpcf.dt * cpcf.ref_wall_units
     cpcf["utau"] = np.sqrt(cpcf.tauw / rho0)
     cpcf["wall_units"] = cpcf.utau / nu
+    tgt = np.vstack(
+        (np.diff(cpcf.x, append=cpcf.x.iloc[0]), np.diff(cpcf.y, append=cpcf.y.iloc[0]))
+    )
+    tgt /= np.linalg.norm(tgt, axis=0)
+    cpcf["cftgt"] = cpcf.cfx * tgt[0, :] + cpcf.cfy * tgt[1, :]
+    cpcf["cfnml"] = -cpcf.cfx * tgt[1, :] + cpcf.cfy * tgt[0, :]
 
     idx_xmax = np.argmax(cpcf.xovc)
     upper = np.where(
@@ -338,7 +343,7 @@ if __name__ == "__main__":
     plt.figure("cf")
     p = plt.plot(
         cpcf.xovc.iloc[upper],
-        cpcf.cfx.iloc[upper],
+        cpcf.cftgt.iloc[upper],
         lw=2,
         color=cmap[3],
         label=f"{model}",
@@ -363,9 +368,27 @@ if __name__ == "__main__":
 
     # profiles
     ndf = pd.read_csv(pname)
+    ndf["alpha"] = ndf.kratio ** 1.7
+    ndf["coeffSGRS"] = ndf.alpha * (2.0 - ndf.alpha) * ndf.tvisc / rho0
+    ndf["diag_tke"] = -2.0 / 3.0 * rho0 * ndf.tvisc * ndf.kratio
+    ndf["tausgrs_xx"] = ndf.coeffSGRS * (2.0 * ndf.dudx) + ndf.diag_tke
+    ndf["tausgrs_yy"] = ndf.coeffSGRS * (2.0 * ndf.dudy) + ndf.diag_tke
+    ndf["tausgrs_xy"] = ndf.coeffSGRS * (ndf.dudy + ndf.dvdx)
+    ndf["urms"] = ndf.upup - ndf.tausgrs_xx
+    ndf["vrms"] = ndf.vpvp - ndf.tausgrs_yy
+    ndf["uvrms"] = ndf.upvp - ndf.tausgrs_xy
     grouped = ndf.groupby(["xloc"])
-    # "urms":0.3, "vrms":0.3,"uvrms":0.014,
-    fields = {"u": 1.4, "tke": 0.03, "sdr": 0.0}
+    fields = {
+        "u": 1.4,
+        "urms": 0.3,
+        "vrms": 0.3,
+        "uvrms": 0.014,
+        "tke": 0.03,
+        "sdr": 0.0,
+        "tvisc": 0.0004,
+        "kratio": 1.0,
+        "alpha": 1.0,
+    }
     for k, (xloc, group) in enumerate(grouped):
         sfx = "a" if xloc in ut.lo_cord_locations() else "b"
         cnt = (
@@ -414,6 +437,10 @@ if __name__ == "__main__":
             plt.tight_layout()
             pdf.savefig(dpi=300)
 
+        sci_format = ticker.ScalarFormatter(useMathText=True)
+        sci_format.set_scientific(True)
+        sci_format.set_powerlimits((-1, 1))
+
         plots = {
             "u": {"xlabel": r"$\langle u \rangle / u_\infty$", "xlim": [0, 7]},
             "urms": {
@@ -434,6 +461,13 @@ if __name__ == "__main__":
                 "xlim": [1, 1e5],
                 "xlog": True,
             },
+            "tvisc": {
+                "xlabel": r"$\langle \nu_t \rangle$",
+                "xlim": [-0.0001, 0.002],
+                "x_sci_format": sci_format,
+            },
+            "kratio": {"xlabel": r"$\langle k_r \rangle$", "xlim": [-0.01, 5],},
+            "alpha": {"xlabel": r"$\langle \alpha \rangle$", "xlim": [-0.01, 5],},
         }
         for name, plot in plots.items():
             for sub in ["a", "b"]:
@@ -447,6 +481,8 @@ if __name__ == "__main__":
                     ax.set_xscale("log")
                 plt.xlim(plot["xlim"])
                 plt.ylim([0, 0.012] if sub == "a" else [0, 0.09])
+                if "x_sci_format" in plot:
+                    ax.xaxis.set_major_formatter(plot["x_sci_format"])
                 # remove duplicate labels
                 handles, labels = ax.get_legend_handles_labels()
                 by_label = dict(zip(labels, handles))
