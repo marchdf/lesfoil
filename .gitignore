@@ -6,4 +6,6 @@ forces.dat
 restart/
 results/
 out.lesfoil_*
+output-*
+pp.o*
 __pycache__
