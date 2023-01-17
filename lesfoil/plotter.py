@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+"""Plotting script."""
 
 import argparse
 import glob
@@ -48,7 +48,7 @@ markertype = ["s", "d", "o", "p", "h"]
 
 
 class RefData:
-    """Reference data class"""
+    """Reference data class."""
 
     def __init__(self, key, pfx, val, sort=None, sfx=None):
         """Initialize."""
@@ -114,11 +114,11 @@ if __name__ == "__main__":
         },
     }
     labels = {
-        "CM1": "Asada \& Kawai (2018) CM1",
-        "CM2": "Asada \& Kawai (2018) CM2",
-        "CM3": "Asada \& Kawai (2018) CM3",
+        "CM1": r"Asada \& Kawai (2018) CM1",
+        "CM2": r"Asada \& Kawai (2018) CM2",
+        "CM3": r"Asada \& Kawai (2018) CM3",
         "exp": "Gleyzes (1978) Exp.",
-        "lesfoil": "Mary \& Sagaut (2002) LES",
+        "lesfoil": r"Mary \& Sagaut (2002) LES",
     }
     rdata = (
         [RefData("dxip", "fig3a-", x) for x in ["CM1", "CM2", "CM3"]]
@@ -289,18 +289,18 @@ if __name__ == "__main__":
     nu = mu / rho0
     model = turb_model.upper().replace("_", "-")
     cord = 1.0
-    refArea = 0.05
+    ref_area = 0.05
     tau = cord / u0
-    dynPres = rho0 * 0.5 * u0 * u0
+    dyn_pres = rho0 * 0.5 * u0 * u0
     re = rho0 * u0 * cord / mu
     deta = 0.000011813977015662547  # from the PW mesh
 
     # wing data
     cpcf = pd.read_csv(fname)
-    cpcf["cf"] = cpcf.tauw / dynPres
-    cpcf["cfx"] = cpcf.tauwx / dynPres
-    cpcf["cfy"] = cpcf.tauwy / dynPres
-    cpcf["cp"] = cpcf.pressure / dynPres
+    cpcf["cf"] = cpcf.tauw / dyn_pres
+    cpcf["cfx"] = cpcf.tauwx / dyn_pres
+    cpcf["cfy"] = cpcf.tauwy / dyn_pres
+    cpcf["cp"] = cpcf.pressure / dyn_pres
     cpcf.sort_values(by=["theta"], inplace=True)
     cpcf["xovc"], cpcf["yovc"] = ut.ccw_rotation(cpcf.x, cpcf.y)
     cpcf["ref_wall_units"] = wall_units_mean_interp(cpcf.xovc)
@@ -408,7 +408,7 @@ if __name__ == "__main__":
         "kratio": 1.0,
         "alpha": 1.0,
     }
-    for k, (xloc, group) in enumerate(grouped):
+    for _k, (xloc, group) in enumerate(grouped):
         sfx = "a" if xloc in ut.lo_cord_locations() else "b"
         cnt = (
             ut.lo_cord_locations().index(xloc)
