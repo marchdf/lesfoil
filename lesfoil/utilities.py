@@ -2,6 +2,8 @@
 import numpy as np
 import yaml
 
+airfoil_aoa = 13.3
+
 
 def parse_ic(fname):
     """Parse the Nalu yaml input file for the initial conditions."""
@@ -26,11 +28,7 @@ def parse_ic(fname):
             print(exc)
 
 
-def airfoil_aoa():
-    return 13.3
-
-
-def ccw_rotation(x, y, angle=airfoil_aoa(), rotcenx=0.0, rotceny=0.0, scale=1.0):
+def ccw_rotation(x, y, angle=airfoil_aoa, rotcenx=0.0, rotceny=0.0, scale=1.0):
     """Rotate counter clockwise."""
     theta = np.radians(angle)
     crdvec = np.array([np.cos(theta), -np.sin(theta)])
@@ -41,7 +39,7 @@ def ccw_rotation(x, y, angle=airfoil_aoa(), rotcenx=0.0, rotceny=0.0, scale=1.0)
 
 
 def ccw_rotation_t00(t00, t01, t11, angle=airfoil_aoa()):
-    """Return 00 component of rotated tensor"""
+    """Return 00 component of rotated tensor."""
     theta = np.radians(angle)
     return (
         t00 * (np.cos(theta) ** 2)
@@ -50,8 +48,8 @@ def ccw_rotation_t00(t00, t01, t11, angle=airfoil_aoa()):
     )
 
 
-def ccw_rotation_t01(t00, t01, t11, angle=airfoil_aoa()):
-    """Return 01 component of rotated tensor"""
+def ccw_rotation_t01(t00, t01, t11, angle=airfoil_aoa):
+    """Return 01 component of rotated tensor."""
     theta = np.radians(angle)
     return (
         0.5 * t00 * np.sin(2 * theta)
@@ -60,8 +58,8 @@ def ccw_rotation_t01(t00, t01, t11, angle=airfoil_aoa()):
     )
 
 
-def ccw_rotation_t11(t00, t01, t11, angle=airfoil_aoa()):
-    """Return 11 component of rotated tensor"""
+def ccw_rotation_t11(t00, t01, t11, angle=airfoil_aoa):
+    """Return 11 component of rotated tensor."""
     theta = np.radians(angle)
     return (
         t00 * (np.sin(theta) ** 2)
@@ -71,18 +69,22 @@ def ccw_rotation_t11(t00, t01, t11, angle=airfoil_aoa()):
 
 
 def cord_locations():
+    """Return cord locations for slicing."""
     return [0.1, 0.15, 0.2, 0.3, 0.5, 0.7, 0.825, 0.87, 0.93, 0.99]
 
 
 def lo_cord_locations():
+    """Low cord locations."""
     return [x for x in cord_locations() if x < 0.55]
 
 
 def hi_cord_locations():
+    """High cord locations."""
     return [x for x in cord_locations() if x >= 0.55]
 
 
 def lo_idx(x, val):
+    """Index in x where x <= val."""
     lo = np.argmin(np.fabs(x - val))
     if x[lo] >= val:
         lo = lo - 1
