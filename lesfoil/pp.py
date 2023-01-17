@@ -60,7 +60,7 @@ def p0_printer(par):
 def subset_fields(data, xloc, yloc, m_airfoil, radius=0.1):
     """Subset the field."""
     # get the coords without the aoa rotation
-    xp, yp = ut.ccw_rotation(data[:, 0], data[:, 1], angle=ut.airfoil_aoa())
+    xp, yp = ut.ccw_rotation(data[:, 0], data[:, 1], angle=ut.airfoil_aoa)
 
     # take the data above the cord vector of the aifoil and in a radius around (xloc, yloc)
     return data[
@@ -190,7 +190,8 @@ if __name__ == "__main__":
         df.to_csv(wingname, index=False)
 
     # Extract velocity profiles
-    is_ams = not mesh.meta.get_field("average_velocity").is_null
+    is_ams = not mesh.meta.get_field("average_dudx").is_null
+    printer(f"""This is {"" if is_ams else "not"} an AMS simulation.""")
     vel_name = "velocity"
     dudx_name = "dudx"
     field_names = [
@@ -273,7 +274,7 @@ if __name__ == "__main__":
 
     # Load airfoil shape
     upper = pd.read_csv(
-        "./meshes/lesfoil_upper.dat",
+        "../meshes/lesfoil_upper.dat",
         header=None,
         names=["x", "y", "z"],
         skiprows=1,
@@ -436,8 +437,8 @@ if __name__ == "__main__":
                 df = pd.DataFrame(np.vstack(lst), columns=names)
 
                 # rotate the data to remove the aoa rotation
-                df["xa"], df["ya"] = ut.ccw_rotation(df.x, df.y, angle=ut.airfoil_aoa())
-                df["ua"], df["va"] = ut.ccw_rotation(df.u, df.v, angle=ut.airfoil_aoa())
+                df["xa"], df["ya"] = ut.ccw_rotation(df.x, df.y, angle=ut.airfoil_aoa)
+                df["ua"], df["va"] = ut.ccw_rotation(df.u, df.v, angle=ut.airfoil_aoa)
 
                 # rotate data so that the tangent is horizontal and the normal is vertical
                 df["x"] = (df.xa - xloc) * tgt[0] + (df.ya - yloc) * tgt[1]
@@ -470,9 +471,9 @@ if __name__ == "__main__":
                         - planes[k].v
                     )
 
-    #                 planes[k].upup += np.sqrt(up * up) / navg
-    #                 planes[k].vpvp += np.sqrt(vp * vp) / navg
-    #                 planes[k].upvp += up * vp / navg
+                    planes[k].upup += np.sqrt(up * up) / navg
+                    planes[k].vpvp += np.sqrt(vp * vp) / navg
+                    planes[k].upvp += up * vp / navg
 
     comm.Barrier()
     if rank == 0:
