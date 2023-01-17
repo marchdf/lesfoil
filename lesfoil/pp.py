@@ -437,15 +437,13 @@ if __name__ == "__main__":
                 df = pd.DataFrame(np.vstack(lst), columns=names)
 
                 # rotate the data to remove the aoa rotation
-                df["xa"], df["ya"] = ut.ccw_rotation(df.x, df.y, angle=ut.airfoil_aoa)
-                df["ua"], df["va"] = ut.ccw_rotation(df.u, df.v, angle=ut.airfoil_aoa)
+                df["xa"], df["ya"] = ut.ccw_rotation(df.x, df.y)
+                df["ua"], df["va"] = ut.ccw_rotation(df.u, df.v)
 
                 # rotate data so that the tangent is horizontal and the normal is vertical
-                df["x"] = (df.xa - xloc) * tgt[0] + (df.ya - yloc) * tgt[1]
-                df["y"] = -(df.xa - xloc) * tgt[1] + (df.ya - yloc) * tgt[0]
-                df["u"] = df.ua * tgt[0] + df.va * tgt[1]
-                df["v"] = -df.ua * tgt[1] + df.va * tgt[0]
-                df.drop(columns=["xa", "ya", "ua", "va"])
+                angle = np.degrees(np.arctan2(tgt[1], tgt[0]))
+                df["x"], df["y"] = ut.ccw_rotation(df.xa - xloc, df.ya - yloc, angle=-angle)
+                df["u"], df["v"] = ut.ccw_rotation(df.ua, df.va, angle=-angle)
 
                 grouped = df.groupby("z")
                 navg = len(tavg_instantaneous) * grouped.ngroups
