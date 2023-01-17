@@ -344,9 +344,12 @@ if __name__ == "__main__":
             df["tau_yya"] = ut.ccw_rotation_t11(df.tau_xx, df.tau_xy, df.tau_yy)
 
             # rotate data so that the tangent is horizontal and the normal is vertical
-            angle = np.degrees(np.arctan2(tgt[0], tgt[1]))
-            df["x"], df["y"] = ut.ccw_rotation(df.xa - xloc, df.ya - yloc, angle=angle)
-            df["u"], df["v"] = ut.ccw_rotation(df.ua, df.va, angle=angle)
+            angle = np.degrees(np.arctan2(tgt[1], tgt[0]))
+            df["x"], df["y"] = ut.ccw_rotation(df.xa - xloc, df.ya - yloc, angle=-angle)
+            df["u"], df["v"] = ut.ccw_rotation(df.ua, df.va, angle=-angle)
+            df["tau_xx"] = ut.ccw_rotation_t00(df.tau_xx, df.tau_xy, df.tau_yy, angle=-angle)
+            df["tau_xy"] = ut.ccw_rotation_t01(df.tau_xx, df.tau_xy, df.tau_yy, angle=-angle)
+            df["tau_yy"] = ut.ccw_rotation_t11(df.tau_xx, df.tau_xy, df.tau_yy, angle=-angle)
             xp = (upper.x - xloc) * tgt[0] + (upper.y - yloc) * tgt[1]
             yp = -(upper.x - xloc) * tgt[1] + (upper.y - yloc) * tgt[0]
             xi = np.array([0])
