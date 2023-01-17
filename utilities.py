@@ -40,6 +40,36 @@ def ccw_rotation(x, y, angle=airfoil_aoa(), rotcenx=0.0, rotceny=0.0, scale=1.0)
     return xp, yp
 
 
+def ccw_rotation_txx(t00, t01, t11, angle=airfoil_aoa()):
+    """Return 00 component of rotated tensor"""
+    theta = np.radians(angle)
+    return (
+        t00 * (np.cos(theta) ** 2)
+        - t01 * np.sin(2 * theta)
+        + t11 * (np.sin(theta) ** 2)
+    )
+
+
+def ccw_rotation_t01(t00, t01, t11, angle=airfoil_aoa()):
+    """Return 01 component of rotated tensor"""
+    theta = np.radians(angle)
+    return (
+        0.5 * t00 * np.sin(2 * theta)
+        + t01 * np.cos(2 * theta)
+        - 0.5 * t11 * np.sin(2 * theta)
+    )
+
+
+def ccw_rotation_t11(t00, t01, t11, angle=airfoil_aoa()):
+    """Return 11 component of rotated tensor"""
+    theta = np.radians(angle)
+    return (
+        t00 * (np.sin(theta) ** 2)
+        + t01 * np.sin(2 * theta)
+        + t11 * (np.cos(theta) ** 2)
+    )
+
+
 def cord_locations():
     return [0.1, 0.15, 0.2, 0.3, 0.5, 0.7, 0.825, 0.87, 0.93, 0.99]
 

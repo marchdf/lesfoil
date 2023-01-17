@@ -179,7 +179,10 @@ if __name__ == "__main__":
     for rd in rdata:
         plt.figure(rd.key)
         plt.plot(
-            rd.xdata(), rd.ydata(), **styles[rd.val], label=labels[rd.val],
+            rd.xdata(),
+            rd.ydata(),
+            **styles[rd.val],
+            label=labels[rd.val],
         )
 
     # Estimate wall units (utau/nu)
@@ -252,11 +255,22 @@ if __name__ == "__main__":
         label=labels[rd_eta.val] + " estimate",
     )
     plt.axhline(
-        deta_mean, xmin=-100, xmax=100, lw=2, color=cmap[-1], ls="--", label="Mean",
+        deta_mean,
+        xmin=-100,
+        xmax=100,
+        lw=2,
+        color=cmap[-1],
+        ls="--",
+        label="Mean",
     )
     plt.figure("dzeta")
     plt.axhline(
-        dzeta, xmin=-100, xmax=100, lw=2, color=cmap[0], label=labels[rd_zeta.val],
+        dzeta,
+        xmin=-100,
+        xmax=100,
+        lw=2,
+        color=cmap[0],
+        label=labels[rd_zeta.val],
     )
     rd_dtp = RefData("dtp", "fig3d-", "CM3")
     plt.figure("dt")
@@ -293,7 +307,7 @@ if __name__ == "__main__":
     cpcf["ref_wall_units"] = wall_units_mean_interp(cpcf.xovc)
     cpcf["dx"] = np.diff(cpcf.x, append=cpcf.x.iloc[0])
     cpcf["dy"] = np.diff(cpcf.y, append=cpcf.y.iloc[0])
-    cpcf["dxi"] = np.sqrt(cpcf.dx ** 2 + cpcf.dy ** 2)
+    cpcf["dxi"] = np.sqrt(cpcf.dx**2 + cpcf.dy**2)
     cpcf["deta"] = deta
     cpcf["dzeta"] = cpcf.dz
     cpcf["dt"] = dt
@@ -338,7 +352,13 @@ if __name__ == "__main__":
         )
 
     plt.figure("cp")
-    p = plt.plot(cpcf.xovc, -cpcf.cp, lw=2, color=cmap[3], label=f"{model}",)
+    p = plt.plot(
+        cpcf.xovc,
+        -cpcf.cp,
+        lw=2,
+        color=cmap[3],
+        label=f"{model}",
+    )
 
     plt.figure("cf")
     p = plt.plot(
@@ -350,7 +370,13 @@ if __name__ == "__main__":
     )
 
     plt.figure("airfoil")
-    p = plt.plot(cpcf.x, cpcf.y, lw=2, color=cmap[0], label="physical",)
+    p = plt.plot(
+        cpcf.x,
+        cpcf.y,
+        lw=2,
+        color=cmap[0],
+        label="physical",
+    )
     p = plt.plot(
         cpcf.iloc[lower].sort_values(by=["xovc"]).xovc,
         cpcf.iloc[lower].sort_values(by=["xovc"]).yovc,
@@ -368,12 +394,6 @@ if __name__ == "__main__":
 
     # profiles
     ndf = pd.read_csv(pname)
-    ndf["alpha"] = ndf.kratio ** 1.7
-    ndf["coeffSGRS"] = ndf.alpha * (2.0 - ndf.alpha) * ndf.tvisc / rho0
-    ndf["diag_tke"] = -2.0 / 3.0 * rho0 * ndf.tvisc * ndf.kratio
-    ndf["tausgrs_xx"] = ndf.coeffSGRS * (2.0 * ndf.dudx) + ndf.diag_tke
-    ndf["tausgrs_yy"] = ndf.coeffSGRS * (2.0 * ndf.dudy) + ndf.diag_tke
-    ndf["tausgrs_xy"] = ndf.coeffSGRS * (ndf.dudy + ndf.dvdx)
     ndf["urms"] = ndf.upup - ndf.tausgrs_xx
     ndf["vrms"] = ndf.vpvp - ndf.tausgrs_yy
     ndf["uvrms"] = ndf.upvp - ndf.tausgrs_xy
@@ -413,17 +433,39 @@ if __name__ == "__main__":
     with PdfPages(fname) as pdf:
 
         plots = {
-            "dxip": {"ylabel": r"$\Delta \xi^+$",},
-            "detap": {"ylabel": r"$\Delta \eta^+$",},
-            "dzetap": {"ylabel": r"$\Delta \zeta^+$",},
-            "dtp": {"ylabel": r"$\Delta t^+$",},
-            "wall_units": {"ylabel": r"$u_\tau / \nu$",},
-            "dxi": {"ylabel": r"$\Delta \xi$",},
-            "deta": {"ylabel": r"$\Delta \eta$",},
-            "dzeta": {"ylabel": r"$\Delta \zeta$",},
-            "dt": {"ylabel": r"$\Delta t$",},
-            "cp": {"ylabel": r"$-C_p$",},
-            "cf": {"ylabel": r"$C_f$",},
+            "dxip": {
+                "ylabel": r"$\Delta \xi^+$",
+            },
+            "detap": {
+                "ylabel": r"$\Delta \eta^+$",
+            },
+            "dzetap": {
+                "ylabel": r"$\Delta \zeta^+$",
+            },
+            "dtp": {
+                "ylabel": r"$\Delta t^+$",
+            },
+            "wall_units": {
+                "ylabel": r"$u_\tau / \nu$",
+            },
+            "dxi": {
+                "ylabel": r"$\Delta \xi$",
+            },
+            "deta": {
+                "ylabel": r"$\Delta \eta$",
+            },
+            "dzeta": {
+                "ylabel": r"$\Delta \zeta$",
+            },
+            "dt": {
+                "ylabel": r"$\Delta t$",
+            },
+            "cp": {
+                "ylabel": r"$-C_p$",
+            },
+            "cf": {
+                "ylabel": r"$C_f$",
+            },
         }
         for name, plot in plots.items():
             plt.figure(name)
@@ -466,8 +508,14 @@ if __name__ == "__main__":
                 "xlim": [-0.0001, 0.002],
                 "x_sci_format": sci_format,
             },
-            "kratio": {"xlabel": r"$\langle k_r \rangle$", "xlim": [-0.01, 5],},
-            "alpha": {"xlabel": r"$\langle \alpha \rangle$", "xlim": [-0.01, 5],},
+            "kratio": {
+                "xlabel": r"$\langle k_r \rangle$",
+                "xlim": [-0.01, 5],
+            },
+            "alpha": {
+                "xlabel": r"$\langle \alpha \rangle$",
+                "xlim": [-0.01, 5],
+            },
         }
         for name, plot in plots.items():
             for sub in ["a", "b"]:

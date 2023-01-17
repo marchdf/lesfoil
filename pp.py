@@ -61,7 +61,7 @@ def subset_fields(data, xloc, yloc, m_airfoil, radius=0.1):
 
     # take the data above the cord vector of the aifoil and in a radius around (xloc, yloc)
     return data[
-        (yp >= m_airfoil * xp) & (((xp - xloc) ** 2 + (yp - yloc) ** 2) < radius ** 2),
+        (yp >= m_airfoil * xp) & (((xp - xloc) ** 2 + (yp - yloc) ** 2) < radius**2),
         :,
     ]
 
@@ -190,24 +190,7 @@ if __name__ == "__main__":
     is_ams = not mesh.meta.get_field("average_velocity").is_null
     vel_name = "velocity"
     dudx_name = "dudx"
-    field_names = [
-        "u",
-        "v",
-        "w",
-        "tke",
-        "sdr",
-        "tvisc",
-        "kratio",
-        "dudx",
-        "dudy",
-        "dudz",
-        "dvdx",
-        "dvdy",
-        "dvdz",
-        "dwdx",
-        "dwdy",
-        "dwdz",
-    ]
+    field_names = ["u", "v", "w", "tke", "sdr", "tau_xx", "tau_xy", "tau_yy"]
     fld_data = None
     for tstep in tavg:
         ftime, missing = mesh.stkio.read_defined_input_fields(tstep)
@@ -217,14 +200,15 @@ if __name__ == "__main__":
         sel = interior & mesh.meta.locally_owned_part
         coords = mesh.meta.coordinate_field
         turbulent_ke = mesh.meta.get_field("turbulent_ke")
+        specific_dissipation_rate = mesh.meta.get_field("specific_dissipation_rate")
         fields = [
             mesh.meta.get_field(vel_name),
             turbulent_ke,
-            mesh.meta.get_field("specific_dissipation_rate"),
-            mesh.meta.get_field("turbulent_viscosity"),
-            mesh.meta.get_field("k_ratio"),
-            mesh.meta.get_field(dudx_name),
+            specific_dissipation_rate,
         ]
+        dveldx = mesh.meta.get_field(dudx_name)
+        tvisc = mesh.meta.get_field("turbulent_viscosity")
+        k_ratio = mesh.meta.get_field("k_ratio")
         names = ["x", "y", "z"] + field_names
         nnodes = sum(bkt.size for bkt in mesh.iter_buckets(sel, stk.StkRank.NODE_RANK))
 
@@ -232,14 +216,35 @@ if __name__ == "__main__":
         data = np.zeros((nnodes, len(names)))
         for bkt in mesh.iter_buckets(sel, stk.StkRank.NODE_RANK):
             arr = coords.bkt_view(bkt)
-            tke = turbulent_ke.bkt_view(bkt)
             for fld in fields:
-                if not is_ams and fld.name == "k_ratio":
-                    vals = np.ones(tke.shape)
                 vals = fld.bkt_view(bkt)
                 if len(vals.shape) == 1:  # its a scalar
                     vals = vals.reshape(-1, 1)
                 arr = np.hstack((arr, vals))
+
+            # tauSGRS_ij = coeffSGRS *(avgdudx[:, i * 3 + j] + avgdudx[:, j * 3 + i]) + 2/3 rho k delta_ij
+            dudx = dveldx.bkt_view(bkt)
+            nut = tvisc.bkt_view(bkt)
+            tke = turbulent_ke.bkt_view(bkt)
+            if is_ams:
+                alpha = k_ratio.bkt_view(bkt) ** 1.7
+                krat = k_ratio.bkt_view(bkt)
+            else:
+                alpha = 1
+                krat = 1
+            rho = 1.0
+            coeffSGRS = alpha * (2.0 - alpha) * nut / rho
+            diag_tke = (-2.0 / 3.0 * rho * tke * krat).reshape(-1, 1)
+            tausgrs_xx = (coeffSGRS * (dudx[:, 0] + dudx[:, 0])).reshape(
+                -1, 1
+            ) + diag_tke
+            tausgrs_xy = (coeffSGRS * (dudx[:, 1] + dudx[:, 3])).reshape(-1, 1)
+            tausgrs_yy = (coeffSGRS * (dudx[:, 4] + dudx[:, 4])).reshape(
+                -1, 1
+            ) + diag_tke
+            arr = np.hstack((arr, tausgrs_xx))
+            arr = np.hstack((arr, tausgrs_xy))
+            arr = np.hstack((arr, tausgrs_yy))
             data[cnt : cnt + bkt.size, :] = arr
             cnt += bkt.size
 
@@ -264,7 +269,13 @@ if __name__ == "__main__":
     comm.Barrier()
     if rank == 0:
         plt.figure("airfoil")
-        p = plt.plot(upper.x, upper.y, lw=2, color="red", label="upper",)
+        p = plt.plot(
+            upper.x,
+            upper.y,
+            lw=2,
+            color="red",
+            label="upper",
+        )
 
     # Subset the fields
     ninterp = 200
@@ -288,7 +299,7 @@ if __name__ == "__main__":
             # equation of normal
             m = nml[1] / nml[0]
             p = yloc - m * xloc
-            dxnml = np.sqrt(deta ** 2 / (1 + m ** 2))
+            dxnml = np.sqrt(deta**2 / (1 + m**2))
             xnml = (
                 np.linspace(xloc - dxnml, xloc, ninterp)
                 if m < 0
@@ -317,22 +328,16 @@ if __name__ == "__main__":
             )
 
             # rotate the data to remove the aoa rotation
-            pairs = [
-                ["x", "y"],
-                ["u", "v"],
-                ["dudx", "dudy"],
-                ["dvdx", "dvdy"],
-                ["dwdx", "dwdy"],
-            ]
-            for p0, p1 in pairs:
-                df[f"{p0}a"], df[f"{p1}a"] = ut.ccw_rotation(df[p0], df[p1])
+            df["xa"], df["ya"] = ut.ccw_rotation(df.x, df.y)
+            df["ua"], df["va"] = ut.ccw_rotation(df.u, df.v)
+            df["tau_xxa"] = ut.ccw_rotation_t00(df.tau_xx, df.tau_xy, df.tau_yy)
+            df["tau_xya"] = ut.ccw_rotation_t01(df.tau_xx, df.tau_xy, df.tau_yy)
+            df["tau_yya"] = ut.ccw_rotation_t11(df.tau_xx, df.tau_xy, df.tau_yy)
 
             # rotate data so that the tangent is horizontal and the normal is vertical
-            df["x"] = (df.xa - xloc) * tgt[0] + (df.ya - yloc) * tgt[1]
-            df["y"] = -(df.xa - xloc) * tgt[1] + (df.ya - yloc) * tgt[0]
-            for p0, p1 in pairs[1:]:
-                df[p0] = df[f"{p0}a"] * tgt[0] + df[f"{p1}a"] * tgt[1]
-                df[p1] = -df[f"{p0}a"] * tgt[1] + df[f"{p1}a"] * tgt[0]
+            angle = np.degrees(np.arctan2(tgt[0], tgt[1]))
+            df["x"], df["y"] = ut.ccw_rotation(df.xa - xloc, df.ya - yloc, angle=angle)
+            df["u"], df["v"] = ut.ccw_rotation(df.ua, df.va, angle=angle)
             xp = (upper.x - xloc) * tgt[0] + (upper.y - yloc) * tgt[1]
             yp = -(upper.x - xloc) * tgt[1] + (upper.y - yloc) * tgt[0]
             xi = np.array([0])
@@ -366,7 +371,7 @@ if __name__ == "__main__":
             means["eta"] = yi
             planes.append(pd.DataFrame(means))
 
-    printer(f"Extract fluctuating velocities")
+    printer("Extract fluctuating velocities")
     comm.Barrier()
     if rank == 0:
         for plane in planes:
