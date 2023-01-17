@@ -38,7 +38,7 @@ def ccw_rotation(x, y, angle=airfoil_aoa, rotcenx=0.0, rotceny=0.0, scale=1.0):
     return xp, yp
 
 
-def ccw_rotation_t00(t00, t01, t11, angle=airfoil_aoa()):
+def ccw_rotation_t00(t00, t01, t11, angle=airfoil_aoa):
     """Return 00 component of rotated tensor."""
     theta = np.radians(angle)
     return (
