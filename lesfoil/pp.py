@@ -47,6 +47,7 @@ markertype = ["s", "d", "o", "p", "h"]
 
 
 def p0_printer(par):
+    """Print on rank 0."""
     iproc = par.rank
 
     def printer(*args, **kwargs):
@@ -57,6 +58,7 @@ def p0_printer(par):
 
 
 def subset_fields(data, xloc, yloc, m_airfoil, radius=0.1):
+    """Subset the field."""
     # get the coords without the aoa rotation
     xp, yp = ut.ccw_rotation(data[:, 0], data[:, 1], angle=ut.airfoil_aoa())
 
@@ -236,7 +238,8 @@ if __name__ == "__main__":
                     vals = vals.reshape(-1, 1)
                 arr = np.hstack((arr, vals))
 
-            # tauSGRS_ij = coeffSGRS *(avgdudx[:, i * 3 + j] + avgdudx[:, j * 3 + i]) + 2/3 rho k delta_ij
+            # tauSGRS_ij = coeff_sgrs *(avgdudx[:, i * 3 + j]
+            #             + avgdudx[:, j * 3 + i]) + 2/3 rho k delta_ij
             dudx = dveldx.bkt_view(bkt)
             nut = tvisc.bkt_view(bkt)
             tke = turbulent_ke.bkt_view(bkt)
@@ -247,13 +250,13 @@ if __name__ == "__main__":
                 alpha = np.ones(nut.shape)
                 krat = np.ones(nut.shape)
             rho = 1.0
-            coeffSGRS = alpha * (2.0 - alpha) * nut / rho
+            coeff_sgrs = alpha * (2.0 - alpha) * nut / rho
             diag_tke = (-2.0 / 3.0 * rho * tke * krat).reshape(-1, 1)
-            tausgrs_xx = (coeffSGRS * (dudx[:, 0] + dudx[:, 0])).reshape(
+            tausgrs_xx = (coeff_sgrs * (dudx[:, 0] + dudx[:, 0])).reshape(
                 -1, 1
             ) + diag_tke
-            tausgrs_xy = (coeffSGRS * (dudx[:, 1] + dudx[:, 3])).reshape(-1, 1)
-            tausgrs_yy = (coeffSGRS * (dudx[:, 4] + dudx[:, 4])).reshape(
+            tausgrs_xy = (coeff_sgrs * (dudx[:, 1] + dudx[:, 3])).reshape(-1, 1)
+            tausgrs_yy = (coeff_sgrs * (dudx[:, 4] + dudx[:, 4])).reshape(
                 -1, 1
             ) + diag_tke
             arr = np.hstack((arr, krat.reshape(-1, 1)))
@@ -403,69 +406,69 @@ if __name__ == "__main__":
             plane["vpvp"] = np.zeros(plane.u.shape)
             plane["upvp"] = np.zeros(plane.u.shape)
 
-    # for tstep in tavg_instantaneous:
-    #     ftime, missing = mesh.stkio.read_defined_input_fields(tstep)
-    #     printer(f"""Loading {vel_name} fields for time: {ftime}""")
+    for tstep in tavg_instantaneous:
+        ftime, missing = mesh.stkio.read_defined_input_fields(tstep)
+        printer(f"""Loading {vel_name} fields for time: {ftime}""")
 
-    #     interior = mesh.meta.get_part("flow-hex")
-    #     sel = interior & mesh.meta.locally_owned_part
-    #     coords = mesh.meta.coordinate_field
-    #     velocity = mesh.meta.get_field("velocity")
-    #     names = ["x", "y", "z", "u", "v", "w"]
-    #     nnodes = sum(bkt.size for bkt in mesh.iter_buckets(sel, stk.StkRank.NODE_RANK))
+        interior = mesh.meta.get_part("flow-hex")
+        sel = interior & mesh.meta.locally_owned_part
+        coords = mesh.meta.coordinate_field
+        velocity = mesh.meta.get_field("velocity")
+        names = ["x", "y", "z", "u", "v", "w"]
+        nnodes = sum(bkt.size for bkt in mesh.iter_buckets(sel, stk.StkRank.NODE_RANK))
 
-    #     cnt = 0
-    #     data = np.zeros((nnodes, len(names)))
-    #     for bkt in mesh.iter_buckets(sel, stk.StkRank.NODE_RANK):
-    #         xyz = coords.bkt_view(bkt)
-    #         vel = velocity.bkt_view(bkt)
-    #         data[cnt : cnt + bkt.size, :] = np.hstack((xyz, vel))
-    #         cnt += bkt.size
+        cnt = 0
+        data = np.zeros((nnodes, len(names)))
+        for bkt in mesh.iter_buckets(sel, stk.StkRank.NODE_RANK):
+            xyz = coords.bkt_view(bkt)
+            vel = velocity.bkt_view(bkt)
+            data[cnt : cnt + bkt.size, :] = np.hstack((xyz, vel))
+            cnt += bkt.size
 
-    #     for k, xloc in enumerate(ut.cord_locations()):
-    #         sub = subset_fields(data, xloc, yloc, m_airfoil)
+        for k, xloc in enumerate(ut.cord_locations()):
+            sub = subset_fields(data, xloc, yloc, m_airfoil)
 
-    #         lst = comm.gather(sub, root=0)
-    #         comm.Barrier()
-    #         if rank == 0:
-    #             xi = np.array([0])
-    #             yi = np.logspace(-5, np.log10(deta), ninterp)
-    #             df = pd.DataFrame(np.vstack(lst), columns=names)
+            lst = comm.gather(sub, root=0)
+            comm.Barrier()
+            if rank == 0:
+                xi = np.array([0])
+                yi = np.logspace(-5, np.log10(deta), ninterp)
+                df = pd.DataFrame(np.vstack(lst), columns=names)
 
-    #             # rotate the data to remove the aoa rotation
-    #             df["xa"], df["ya"] = ut.ccw_rotation(df.x, df.y, angle=ut.airfoil_aoa())
-    #             df["ua"], df["va"] = ut.ccw_rotation(df.u, df.v, angle=ut.airfoil_aoa())
+                # rotate the data to remove the aoa rotation
+                df["xa"], df["ya"] = ut.ccw_rotation(df.x, df.y, angle=ut.airfoil_aoa())
+                df["ua"], df["va"] = ut.ccw_rotation(df.u, df.v, angle=ut.airfoil_aoa())
 
-    #             # rotate data so that the tangent is horizontal and the normal is vertical
-    #             df["x"] = (df.xa - xloc) * tgt[0] + (df.ya - yloc) * tgt[1]
-    #             df["y"] = -(df.xa - xloc) * tgt[1] + (df.ya - yloc) * tgt[0]
-    #             df["u"] = df.ua * tgt[0] + df.va * tgt[1]
-    #             df["v"] = -df.ua * tgt[1] + df.va * tgt[0]
-    #             df.drop(columns=["xa", "ya", "ua", "va"])
+                # rotate data so that the tangent is horizontal and the normal is vertical
+                df["x"] = (df.xa - xloc) * tgt[0] + (df.ya - yloc) * tgt[1]
+                df["y"] = -(df.xa - xloc) * tgt[1] + (df.ya - yloc) * tgt[0]
+                df["u"] = df.ua * tgt[0] + df.va * tgt[1]
+                df["v"] = -df.ua * tgt[1] + df.va * tgt[0]
+                df.drop(columns=["xa", "ya", "ua", "va"])
 
-    #             grouped = df.groupby("z")
-    #             navg = len(tavg_instantaneous) * grouped.ngroups
-    #             for name, group in grouped:
-    #                 up = (
-    #                     griddata(
-    #                         (group.x, group.y),
-    #                         group.u,
-    #                         (xi[None, :], yi[:, None]),
-    #                         method="cubic",
-    #                         fill_value=0,
-    #                     ).flatten()
-    #                     - planes[k].u
-    #                 )
-    #                 vp = (
-    #                     griddata(
-    #                         (group.x, group.y),
-    #                         group.v,
-    #                         (xi[None, :], yi[:, None]),
-    #                         method="cubic",
-    #                         fill_value=0,
-    #                     ).flatten()
-    #                     - planes[k].v
-    #                 )
+                grouped = df.groupby("z")
+                navg = len(tavg_instantaneous) * grouped.ngroups
+                for _name, group in grouped:
+                    up = (
+                        griddata(
+                            (group.x, group.y),
+                            group.u,
+                            (xi[None, :], yi[:, None]),
+                            method="cubic",
+                            fill_value=0,
+                        ).flatten()
+                        - planes[k].u
+                    )
+                    vp = (
+                        griddata(
+                            (group.x, group.y),
+                            group.v,
+                            (xi[None, :], yi[:, None]),
+                            method="cubic",
+                            fill_value=0,
+                        ).flatten()
+                        - planes[k].v
+                    )
 
     #                 planes[k].upup += np.sqrt(up * up) / navg
     #                 planes[k].vpvp += np.sqrt(vp * vp) / navg
