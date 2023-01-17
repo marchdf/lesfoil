@@ -91,7 +91,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Reference data
-    refdir = pathlib.Path("refdata")
+    refdir = pathlib.Path("../refdata")
     styles = {
         "CM1": {"lw": 2, "color": cmap[0]},
         "CM2": {"lw": 2, "color": cmap[1]},
