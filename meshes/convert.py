@@ -1,11 +1,12 @@
 """Convert UFR geometry to something I can use in PW."""
-import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 from scipy.interpolate import interp1d
 
 
 def resample(df):
+    """Resample."""
     lst = []
     npt = 10
     for i in range(len(df.x) - 1):
@@ -26,6 +27,7 @@ def resample(df):
 
 
 def write(df, fname):
+    """Write the dataframe."""
     df.to_csv(fname, sep=" ", index=False, header=False, columns=["x", "y", "z"])
     with open(fname, "r+") as f:
         content = f.read()
@@ -34,7 +36,6 @@ def write(df, fname):
 
 
 if __name__ == "__main__":
-
     gname = "UFR2-05_geometry.dat"
     fname = "lesfoil.dat"
     uname = "lesfoil_upper.dat"

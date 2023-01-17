@@ -1,18 +1,17 @@
-#!/usr/bin/env python3
+"""Plotting script."""
 
 import argparse
-import pathlib
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
-from matplotlib import ticker
-from matplotlib import rc_file
-import pandas as pd
-import numpy as np
-from scipy import interpolate
-import utilities as ut
 import glob
 import os
+import pathlib
 
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import utilities as ut
+from matplotlib import ticker
+from matplotlib.backends.backend_pdf import PdfPages
+from scipy import interpolate
 
 plt.rc("text", usetex=True)
 plt.rcParams.update({"figure.max_open_warning": 0})
@@ -49,7 +48,7 @@ markertype = ["s", "d", "o", "p", "h"]
 
 
 class RefData:
-    """Reference data class"""
+    """Reference data class."""
 
     def __init__(self, key, pfx, val, sort=None, sfx=None):
         """Initialize."""
@@ -84,7 +83,6 @@ class RefData:
 
 
 if __name__ == "__main__":
-
     # Parse arguments
     parser = argparse.ArgumentParser(description="A simple plot tool")
     parser.add_argument(
@@ -116,11 +114,11 @@ if __name__ == "__main__":
         },
     }
     labels = {
-        "CM1": "Asada \& Kawai (2018) CM1",
-        "CM2": "Asada \& Kawai (2018) CM2",
-        "CM3": "Asada \& Kawai (2018) CM3",
+        "CM1": r"Asada \& Kawai (2018) CM1",
+        "CM2": r"Asada \& Kawai (2018) CM2",
+        "CM3": r"Asada \& Kawai (2018) CM3",
         "exp": "Gleyzes (1978) Exp.",
-        "lesfoil": "Mary \& Sagaut (2002) LES",
+        "lesfoil": r"Mary \& Sagaut (2002) LES",
     }
     rdata = (
         [RefData("dxip", "fig3a-", x) for x in ["CM1", "CM2", "CM3"]]
@@ -180,7 +178,10 @@ if __name__ == "__main__":
     for rd in rdata:
         plt.figure(rd.key)
         plt.plot(
-            rd.xdata(), rd.ydata(), **styles[rd.val], label=labels[rd.val],
+            rd.xdata(),
+            rd.ydata(),
+            **styles[rd.val],
+            label=labels[rd.val],
         )
 
     # Estimate wall units (utau/nu)
@@ -253,11 +254,22 @@ if __name__ == "__main__":
         label=labels[rd_eta.val] + " estimate",
     )
     plt.axhline(
-        deta_mean, xmin=-100, xmax=100, lw=2, color=cmap[-1], ls="--", label="Mean",
+        deta_mean,
+        xmin=-100,
+        xmax=100,
+        lw=2,
+        color=cmap[-1],
+        ls="--",
+        label="Mean",
     )
     plt.figure("dzeta")
     plt.axhline(
-        dzeta, xmin=-100, xmax=100, lw=2, color=cmap[0], label=labels[rd_zeta.val],
+        dzeta,
+        xmin=-100,
+        xmax=100,
+        lw=2,
+        color=cmap[0],
+        label=labels[rd_zeta.val],
     )
     rd_dtp = RefData("dtp", "fig3d-", "CM3")
     plt.figure("dt")
@@ -277,24 +289,24 @@ if __name__ == "__main__":
     nu = mu / rho0
     model = turb_model.upper().replace("_", "-")
     cord = 1.0
-    refArea = 0.05
+    ref_area = 0.05
     tau = cord / u0
-    dynPres = rho0 * 0.5 * u0 * u0
+    dyn_pres = rho0 * 0.5 * u0 * u0
     re = rho0 * u0 * cord / mu
     deta = 0.000011813977015662547  # from the PW mesh
 
     # wing data
     cpcf = pd.read_csv(fname)
-    cpcf["cf"] = cpcf.tauw / dynPres
-    cpcf["cfx"] = cpcf.tauwx / dynPres
-    cpcf["cfy"] = cpcf.tauwy / dynPres
-    cpcf["cp"] = cpcf.pressure / dynPres
+    cpcf["cf"] = cpcf.tauw / dyn_pres
+    cpcf["cfx"] = cpcf.tauwx / dyn_pres
+    cpcf["cfy"] = cpcf.tauwy / dyn_pres
+    cpcf["cp"] = cpcf.pressure / dyn_pres
     cpcf.sort_values(by=["theta"], inplace=True)
     cpcf["xovc"], cpcf["yovc"] = ut.ccw_rotation(cpcf.x, cpcf.y)
     cpcf["ref_wall_units"] = wall_units_mean_interp(cpcf.xovc)
     cpcf["dx"] = np.diff(cpcf.x, append=cpcf.x.iloc[0])
     cpcf["dy"] = np.diff(cpcf.y, append=cpcf.y.iloc[0])
-    cpcf["dxi"] = np.sqrt(cpcf.dx ** 2 + cpcf.dy ** 2)
+    cpcf["dxi"] = np.sqrt(cpcf.dx**2 + cpcf.dy**2)
     cpcf["deta"] = deta
     cpcf["dzeta"] = cpcf.dz
     cpcf["dt"] = dt
@@ -339,7 +351,13 @@ if __name__ == "__main__":
         )
 
     plt.figure("cp")
-    p = plt.plot(cpcf.xovc, -cpcf.cp, lw=2, color=cmap[3], label=f"{model}",)
+    p = plt.plot(
+        cpcf.xovc,
+        -cpcf.cp,
+        lw=2,
+        color=cmap[3],
+        label=f"{model}",
+    )
 
     plt.figure("cf")
     p = plt.plot(
@@ -351,7 +369,13 @@ if __name__ == "__main__":
     )
 
     plt.figure("airfoil")
-    p = plt.plot(cpcf.x, cpcf.y, lw=2, color=cmap[0], label="physical",)
+    p = plt.plot(
+        cpcf.x,
+        cpcf.y,
+        lw=2,
+        color=cmap[0],
+        label="physical",
+    )
     p = plt.plot(
         cpcf.iloc[lower].sort_values(by=["xovc"]).xovc,
         cpcf.iloc[lower].sort_values(by=["xovc"]).yovc,
@@ -384,7 +408,7 @@ if __name__ == "__main__":
         "kratio": 1.0,
         "alpha": 1.0,
     }
-    for k, (xloc, group) in enumerate(grouped):
+    for _k, (xloc, group) in enumerate(grouped):
         sfx = "a" if xloc in ut.lo_cord_locations() else "b"
         cnt = (
             ut.lo_cord_locations().index(xloc)
@@ -406,19 +430,40 @@ if __name__ == "__main__":
     # Save the plots
     fname = "plots.pdf"
     with PdfPages(fname) as pdf:
-
         plots = {
-            "dxip": {"ylabel": r"$\Delta \xi^+$",},
-            "detap": {"ylabel": r"$\Delta \eta^+$",},
-            "dzetap": {"ylabel": r"$\Delta \zeta^+$",},
-            "dtp": {"ylabel": r"$\Delta t^+$",},
-            "wall_units": {"ylabel": r"$u_\tau / \nu$",},
-            "dxi": {"ylabel": r"$\Delta \xi$",},
-            "deta": {"ylabel": r"$\Delta \eta$",},
-            "dzeta": {"ylabel": r"$\Delta \zeta$",},
-            "dt": {"ylabel": r"$\Delta t$",},
-            "cp": {"ylabel": r"$-C_p$",},
-            "cf": {"ylabel": r"$C_f$",},
+            "dxip": {
+                "ylabel": r"$\Delta \xi^+$",
+            },
+            "detap": {
+                "ylabel": r"$\Delta \eta^+$",
+            },
+            "dzetap": {
+                "ylabel": r"$\Delta \zeta^+$",
+            },
+            "dtp": {
+                "ylabel": r"$\Delta t^+$",
+            },
+            "wall_units": {
+                "ylabel": r"$u_\tau / \nu$",
+            },
+            "dxi": {
+                "ylabel": r"$\Delta \xi$",
+            },
+            "deta": {
+                "ylabel": r"$\Delta \eta$",
+            },
+            "dzeta": {
+                "ylabel": r"$\Delta \zeta$",
+            },
+            "dt": {
+                "ylabel": r"$\Delta t$",
+            },
+            "cp": {
+                "ylabel": r"$-C_p$",
+            },
+            "cf": {
+                "ylabel": r"$C_f$",
+            },
         }
         for name, plot in plots.items():
             plt.figure(name)
@@ -461,8 +506,14 @@ if __name__ == "__main__":
                 "xlim": [-0.0001, 0.002],
                 "x_sci_format": sci_format,
             },
-            "kratio": {"xlabel": r"$\langle k_r \rangle$", "xlim": [-0.01, 5],},
-            "alpha": {"xlabel": r"$\langle \alpha \rangle$", "xlim": [-0.01, 5],},
+            "kratio": {
+                "xlabel": r"$\langle k_r \rangle$",
+                "xlim": [-0.01, 5],
+            },
+            "alpha": {
+                "xlabel": r"$\langle \alpha \rangle$",
+                "xlim": [-0.01, 5],
+            },
         }
         for name, plot in plots.items():
             for sub in ["a", "b"]:
