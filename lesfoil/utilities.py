@@ -1,6 +1,6 @@
 """Utilities for scripts."""
-import yaml
 import numpy as np
+import yaml
 
 
 def parse_ic(fname):
@@ -39,6 +39,7 @@ def ccw_rotation(x, y, angle=airfoil_aoa(), rotcenx=0.0, rotceny=0.0, scale=1.0)
     yp = np.dot(np.asarray([x - rotcenx, y - rotceny]).T, tan_crdvec) / scale + rotceny
     return xp, yp
 
+
 def ccw_rotation_t00(t00, t01, t11, angle=airfoil_aoa()):
     """Return 00 component of rotated tensor"""
     theta = np.radians(angle)
@@ -67,7 +68,6 @@ def ccw_rotation_t11(t00, t01, t11, angle=airfoil_aoa()):
         + t01 * np.sin(2 * theta)
         + t11 * (np.cos(theta) ** 2)
     )
-
 
 
 def cord_locations():

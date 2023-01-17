@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "lesfoil"
+version = "0.1.0"
+description = ""
+authors = ["Marc Henry de Frahan <marc.henrydefrahan@nrel.gov>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.12"
+numpy = "^1.24.1"
+pandas = "^1.5.2"
+matplotlib = "^3.6.3"
+scipy = "^1.10.0"
+PyYAML = "^6.0"
+
+
+[tool.poetry.group.dev.dependencies]
+black = {version = "^23.1a1", allow-prereleases = true, extras = ["jupyter"]}
+isort = "^5.11.4"
+flake8 = "^6.0.0"
+flake8-docstrings = "^1.6.0"
+pep8-naming = "^0.13.3"
+flake8-bugbear = "^23.1.14"
+pytest = "^7.2.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -2,15 +2,16 @@
 
 import argparse
 import os
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from mpi4py import MPI
 import stk
+import utilities as ut
+from matplotlib.backends.backend_pdf import PdfPages
+from mpi4py import MPI
 from scipy import interpolate
 from scipy.interpolate import griddata
-import utilities as ut
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
 
 plt.rc("text", usetex=True)
 cmap_med = [
@@ -61,7 +62,7 @@ def subset_fields(data, xloc, yloc, m_airfoil, radius=0.1):
 
     # take the data above the cord vector of the aifoil and in a radius around (xloc, yloc)
     return data[
-        (yp >= m_airfoil * xp) & (((xp - xloc) ** 2 + (yp - yloc) ** 2) < radius ** 2),
+        (yp >= m_airfoil * xp) & (((xp - xloc) ** 2 + (yp - yloc) ** 2) < radius**2),
         :,
     ]
 
@@ -284,14 +285,19 @@ if __name__ == "__main__":
     comm.Barrier()
     if rank == 0:
         plt.figure("airfoil")
-        p = plt.plot(upper.x, upper.y, lw=2, color="red", label="upper",)
+        p = plt.plot(
+            upper.x,
+            upper.y,
+            lw=2,
+            color="red",
+            label="upper",
+        )
 
     # Subset the fields
     ninterp = 200
     deta = 0.095
     planes = []
     for xloc in ut.cord_locations():
-
         yloc = upper_y_interp(xloc)
 
         sub = subset_fields(data, xloc, yloc, m_airfoil)
@@ -308,7 +314,7 @@ if __name__ == "__main__":
             # equation of normal
             m = nml[1] / nml[0]
             p = yloc - m * xloc
-            dxnml = np.sqrt(deta ** 2 / (1 + m ** 2))
+            dxnml = np.sqrt(deta**2 / (1 + m**2))
             xnml = (
                 np.linspace(xloc - dxnml, xloc, ninterp)
                 if m < 0
@@ -347,9 +353,15 @@ if __name__ == "__main__":
             angle = np.degrees(np.arctan2(tgt[1], tgt[0]))
             df["x"], df["y"] = ut.ccw_rotation(df.xa - xloc, df.ya - yloc, angle=-angle)
             df["u"], df["v"] = ut.ccw_rotation(df.ua, df.va, angle=-angle)
-            df["tau_xx"] = ut.ccw_rotation_t00(df.tau_xx, df.tau_xy, df.tau_yy, angle=-angle)
-            df["tau_xy"] = ut.ccw_rotation_t01(df.tau_xx, df.tau_xy, df.tau_yy, angle=-angle)
-            df["tau_yy"] = ut.ccw_rotation_t11(df.tau_xx, df.tau_xy, df.tau_yy, angle=-angle)
+            df["tau_xx"] = ut.ccw_rotation_t00(
+                df.tau_xx, df.tau_xy, df.tau_yy, angle=-angle
+            )
+            df["tau_xy"] = ut.ccw_rotation_t01(
+                df.tau_xx, df.tau_xy, df.tau_yy, angle=-angle
+            )
+            df["tau_yy"] = ut.ccw_rotation_t11(
+                df.tau_xx, df.tau_xy, df.tau_yy, angle=-angle
+            )
             xp = (upper.x - xloc) * tgt[0] + (upper.y - yloc) * tgt[1]
             yp = -(upper.x - xloc) * tgt[1] + (upper.y - yloc) * tgt[0]
             xi = np.array([0])
