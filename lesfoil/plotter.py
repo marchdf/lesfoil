@@ -21,6 +21,7 @@ plt.style.use(module_dir / "project.mplstyle")
 plt.rcParams.update({"figure.max_open_warning": 0})
 prop_cycle = plt.rcParams["axes.prop_cycle"]
 cmap = prop_cycle.by_key()["color"]
+linestyles = prop_cycle.by_key()["linestyle"]
 markers = itertools.cycle(("s", "d", "o", "p", "h"))
 
 
@@ -74,6 +75,7 @@ def main():
 
     # Reference data
     colors = {"CM1": cmap[0], "CM2": cmap[1], "CM3": cmap[2]}
+    ls = {"CM1": linestyles[0], "CM2": linestyles[1], "CM3": linestyles[2]}
     scatter = ["exp", "lesfoil"]
     mst = {"exp": next(markers), "lesfoil": next(markers)}
     labels = {
@@ -202,6 +204,7 @@ def main():
                 rd.xdata(),
                 rd.ydata(),
                 color=colors[rd.val],
+                ls=ls[rd.val],
                 label=labels[rd.val],
             )
 
