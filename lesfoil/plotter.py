@@ -12,39 +12,14 @@ import utilities as ut
 from matplotlib import ticker
 from matplotlib.backends.backend_pdf import PdfPages
 from scipy import interpolate
+import itertools
 
-plt.rc("text", usetex=True)
+
+plt.style.use('./project.mplstyle')
 plt.rcParams.update({"figure.max_open_warning": 0})
-cmap_med = [
-    "#F15A60",
-    "#7AC36A",
-    "#5A9BD4",
-    "#FAA75B",
-    "#9E67AB",
-    "#CE7058",
-    "#D77FB4",
-    "#737373",
-]
-cmap = [
-    "#EE2E2F",
-    "#008C48",
-    "#185AA9",
-    "#F47D23",
-    "#662C91",
-    "#A21D21",
-    "#B43894",
-    "#010202",
-]
-dashseq = [
-    (None, None),
-    [10, 5],
-    [10, 4, 3, 4],
-    [3, 3],
-    [10, 4, 3, 4, 3, 4],
-    [3, 3],
-    [3, 3],
-]
-markertype = ["s", "d", "o", "p", "h"]
+prop_cycle = plt.rcParams['axes.prop_cycle']
+cmap = prop_cycle.by_key()["color"]
+markers = itertools.cycle(("s", "d", "o", "p", "h"))
 
 
 class RefData:
@@ -61,6 +36,7 @@ class RefData:
             self.fname = self.pfx + self.val + self.sfx + ".csv"
         else:
             self.fname = self.pfx + self.val + ".csv"
+        refdir = pathlib.Path("../refdata")
         self.df = pd.read_csv(refdir / self.fname, header=None, names=["x", key])
         self.df.sort_values(by="x", inplace=True)
 
@@ -91,28 +67,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Reference data
-    refdir = pathlib.Path("../refdata")
-    styles = {
-        "CM1": {"lw": 2, "color": cmap[0]},
-        "CM2": {"lw": 2, "color": cmap[1]},
-        "CM3": {"lw": 2, "color": cmap[2]},
-        "exp": {
-            "lw": 0,
-            "color": cmap[-1],
-            "linestyle": "None",
-            "marker": markertype[0],
-            "mfc": "None",
-            "ms": 6,
-        },
-        "lesfoil": {
-            "lw": 0,
-            "color": cmap[-1],
-            "linestyle": "None",
-            "marker": markertype[1],
-            "mfc": "None",
-            "ms": 6,
-        },
-    }
+    colors = {"CM1":cmap[0], "CM2":cmap[1], "CM3":cmap[2]}
+    scatter = ["exp", "lesfoil"]
+    mst = {"exp": next(markers), "lesfoil": next(markers)}
     labels = {
         "CM1": r"Asada \& Kawai (2018) CM1",
         "CM2": r"Asada \& Kawai (2018) CM2",
@@ -177,12 +134,21 @@ if __name__ == "__main__":
 
     for rd in rdata:
         plt.figure(rd.key)
-        plt.plot(
-            rd.xdata(),
-            rd.ydata(),
-            **styles[rd.val],
-            label=labels[rd.val],
-        )
+        if rd.val in scatter:
+            plt.scatter(
+                rd.xdata(),
+                rd.ydata(),
+                facecolors = "None",
+                edgecolors = cmap[-1],
+                marker=mst[rd.val],
+                label=labels[rd.val],)
+        else:
+            plt.plot(
+                rd.xdata(),
+                rd.ydata(),
+                color=colors[rd.val],
+                label=labels[rd.val],
+            )
 
     # Estimate wall units (utau/nu)
     N_zeta_CM3 = 705
@@ -215,24 +181,16 @@ if __name__ == "__main__":
     plt.plot(
         rd_zeta.xdata(),
         wall_units_zeta,
-        lw=2,
-        color=cmap[0],
         label=labels[rd_zeta.val] + " estimate",
     )
     plt.plot(
         rd_eta.xdata(),
         wall_units_eta,
-        lw=2,
-        color=cmap[1],
-        ls="--",
         label=labels[rd_zeta.val] + " estimate",
     )
     plt.plot(
         xnew,
         wall_units_mean,
-        lw=2,
-        color=cmap[2],
-        ls="--",
         label=labels[rd_zeta.val] + " mean",
     )
 
@@ -241,23 +199,18 @@ if __name__ == "__main__":
     plt.plot(
         rd_dxip.xdata(),
         rd_dxip.ydata() / wall_units_mean_interp(rd_dxip.xdata()),
-        lw=2,
-        color=cmap[0],
         label=labels[rd_dxip.val] + " estimate",
     )
     plt.figure("deta")
     plt.plot(
         rd_eta.xdata(),
         deta,
-        lw=2,
-        color=cmap[0],
         label=labels[rd_eta.val] + " estimate",
     )
     plt.axhline(
         deta_mean,
         xmin=-100,
         xmax=100,
-        lw=2,
         color=cmap[-1],
         ls="--",
         label="Mean",
@@ -267,8 +220,6 @@ if __name__ == "__main__":
         dzeta,
         xmin=-100,
         xmax=100,
-        lw=2,
-        color=cmap[0],
         label=labels[rd_zeta.val],
     )
     rd_dtp = RefData("dtp", "fig3d-", "CM3")
@@ -276,8 +227,6 @@ if __name__ == "__main__":
     plt.plot(
         rd_dtp.xdata(),
         rd_dtp.ydata() / wall_units_mean_interp(rd_dtp.xdata()),
-        lw=2,
-        color=cmap[0],
         label=labels[rd_dxip.val] + " estimate",
     )
 
@@ -342,52 +291,43 @@ if __name__ == "__main__":
         "wall_units",
     ]:
         plt.figure(val)
+        plt.gca().set_prop_cycle(prop_cycle[3:])
         plt.plot(
             cpcf.xovc.iloc[upper],
             cpcf[val].iloc[upper],
-            lw=2,
-            color=cmap[3],
             label=f"{model}",
         )
 
     plt.figure("cp")
-    p = plt.plot(
+    plt.gca().set_prop_cycle(prop_cycle[3:])
+    plt.plot(
         cpcf.xovc,
         -cpcf.cp,
-        lw=2,
-        color=cmap[3],
         label=f"{model}",
     )
 
     plt.figure("cf")
-    p = plt.plot(
+    plt.gca().set_prop_cycle(prop_cycle[3:])
+    plt.plot(
         cpcf.xovc.iloc[upper],
         cpcf.cftgt.iloc[upper],
-        lw=2,
-        color=cmap[3],
         label=f"{model}",
     )
 
     plt.figure("airfoil")
-    p = plt.plot(
+    plt.plot(
         cpcf.x,
         cpcf.y,
-        lw=2,
-        color=cmap[0],
         label="physical",
     )
-    p = plt.plot(
+    plt.plot(
         cpcf.iloc[lower].sort_values(by=["xovc"]).xovc,
         cpcf.iloc[lower].sort_values(by=["xovc"]).yovc,
-        lw=2,
-        color=cmap[1],
         label="rotated, lower",
     )
-    p = plt.plot(
+    plt.plot(
         cpcf.xovc.iloc[upper],
         cpcf.yovc.iloc[upper],
-        lw=2,
-        color=cmap[2],
         label="rotated, upper",
     )
 
@@ -418,14 +358,12 @@ if __name__ == "__main__":
 
         for field, offset in fields.items():
             plt.figure(f"{field}-{sfx}")
-            p = plt.plot(
+            plt.gca().set_prop_cycle(prop_cycle[3:])
+            plt.plot(
                 group[field] + cnt * offset,
                 group.eta,
-                lw=2,
-                color=cmap[3],
                 label=f"{model}",
             )
-            p[0].set_dashes(dashseq[0])
 
     # Save the plots
     fname = "plots.pdf"
@@ -467,15 +405,11 @@ if __name__ == "__main__":
         }
         for name, plot in plots.items():
             plt.figure(name)
-            ax = plt.gca()
-            plt.xlabel(r"$x/c$", fontsize=22, fontweight="bold")
-            plt.ylabel(plot["ylabel"], fontsize=22, fontweight="bold")
-            plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
-            plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
+            plt.xlabel(r"$x/c$")
+            plt.ylabel(plot["ylabel"])
             plt.xlim([0, 1])
-            legend = ax.legend(loc="best")
-            plt.tight_layout()
-            pdf.savefig(dpi=300)
+            legend = plt.gca().legend()
+            pdf.savefig()
 
         sci_format = ticker.ScalarFormatter(useMathText=True)
         sci_format.set_scientific(True)
@@ -519,10 +453,8 @@ if __name__ == "__main__":
             for sub in ["a", "b"]:
                 plt.figure(f"{name}-{sub}")
                 ax = plt.gca()
-                plt.xlabel(plot["xlabel"], fontsize=22, fontweight="bold")
-                plt.ylabel(r"$y_\eta / c$", fontsize=22, fontweight="bold")
-                plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
-                plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
+                plt.xlabel(plot["xlabel"])
+                plt.ylabel(r"$y_\eta / c$")
                 if "xlog" in plot:
                     ax.set_xscale("log")
                 plt.xlim(plot["xlim"])
@@ -532,17 +464,12 @@ if __name__ == "__main__":
                 # remove duplicate labels
                 handles, labels = ax.get_legend_handles_labels()
                 by_label = dict(zip(labels, handles))
-                legend = ax.legend(by_label.values(), by_label.keys(), loc="best")
-                plt.tight_layout()
-                pdf.savefig(dpi=300)
+                legend = ax.legend(by_label.values(), by_label.keys())
+                pdf.savefig()
 
         plt.figure("airfoil")
-        ax = plt.gca()
-        plt.xlabel(r"$x/c$", fontsize=22, fontweight="bold")
-        plt.ylabel(r"$y / c$", fontsize=22, fontweight="bold")
-        plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
-        plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
-        legend = ax.legend(loc="best")
-        ax.axis("equal")
-        plt.tight_layout()
-        pdf.savefig(dpi=300)
+        plt.xlabel(r"$x/c$")
+        plt.ylabel(r"$y / c$")
+        legend = plt.gca().legend()
+        plt.gca().axis("equal")
+        pdf.savefig()

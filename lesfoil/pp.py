@@ -1,5 +1,6 @@
 """Post process."""
 
+import time
 import argparse
 import os
 
@@ -13,37 +14,10 @@ from mpi4py import MPI
 from scipy import interpolate
 from scipy.interpolate import griddata
 
-plt.rc("text", usetex=True)
-cmap_med = [
-    "#F15A60",
-    "#7AC36A",
-    "#5A9BD4",
-    "#FAA75B",
-    "#9E67AB",
-    "#CE7058",
-    "#D77FB4",
-    "#737373",
-]
-cmap = [
-    "#EE2E2F",
-    "#008C48",
-    "#185AA9",
-    "#F47D23",
-    "#662C91",
-    "#A21D21",
-    "#B43894",
-    "#010202",
-]
-dashseq = [
-    (None, None),
-    [10, 5],
-    [10, 4, 3, 4],
-    [3, 3],
-    [10, 4, 3, 4, 3, 4],
-    [3, 3],
-    [3, 3],
-]
-markertype = ["s", "d", "o", "p", "h"]
+plt.style.use('./project.mplstyle')
+plt.rcParams.update({"figure.max_open_warning": 0})
+prop_cycle = plt.rcParams['axes.prop_cycle']
+cmap = prop_cycle.by_key()["color"]
 
 
 def p0_printer(par):
@@ -100,6 +74,7 @@ if __name__ == "__main__":
         default=1.2,
     )
     args = parser.parse_args()
+    tic = time.perf_counter()
 
     fdir = os.path.dirname(args.mfile)
     mname = os.path.splitext(os.path.basename(args.mfile))[0]
@@ -291,9 +266,7 @@ if __name__ == "__main__":
         plt.figure("airfoil")
         p = plt.plot(
             upper.x,
-            upper.y,
-            lw=2,
-            color="red",
+            upper.y
             label="upper",
         )
 
@@ -337,7 +310,7 @@ if __name__ == "__main__":
                 mfc="None",
                 ms=6,
             )
-            p = plt.plot(xnml, ynml, lw=2, color="green", label="normal")
+            p = plt.plot(xnml, ynml, label="normal")
 
             df = (
                 pd.DataFrame(np.vstack(lst), columns=names)
@@ -372,8 +345,8 @@ if __name__ == "__main__":
             yi = np.logspace(-5, np.log10(deta), ninterp)
             plt.figure(f"airfoil-{xloc}")
             plt.tripcolor(df.x, df.y, df.u, shading="gouraud")
-            p = plt.plot(xi * np.ones(yi.shape), yi, lw=2, color="red")
-            p = plt.plot(xp, yp, lw=2, color="green", label="Rotated airfoil")
+            p = plt.plot(xi * np.ones(yi.shape), yi)
+            p = plt.plot(xp, yp, label="Rotated airfoil")
             p = plt.plot(
                 0.0,
                 0.0,
@@ -427,11 +400,18 @@ if __name__ == "__main__":
             cnt += bkt.size
 
         for k, xloc in enumerate(ut.cord_locations()):
-            sub = subset_fields(data, xloc, yloc, m_airfoil)
+            yloc = upper_y_interp(xloc)
 
+            sub = subset_fields(data, xloc, yloc, m_airfoil)
+        
             lst = comm.gather(sub, root=0)
             comm.Barrier()
             if rank == 0:
+                # normal to upper part of the airfoil
+                lo_idx = ut.lo_idx(upper.x.to_numpy(), xloc)
+                tgt = (upper.iloc[lo_idx + 1] - upper.iloc[lo_idx]).to_numpy()
+                tgt /= np.linalg.norm(tgt)
+                
                 xi = np.array([0])
                 yi = np.logspace(-5, np.log10(deta), ninterp)
                 df = pd.DataFrame(np.vstack(lst), columns=names)
@@ -469,8 +449,8 @@ if __name__ == "__main__":
                         - planes[k].v
                     )
 
-                    planes[k].upup += np.sqrt(up * up) / navg
-                    planes[k].vpvp += np.sqrt(vp * vp) / navg
+                    planes[k].upup += up * up / navg
+                    planes[k].vpvp += vp * vp / navg
                     planes[k].upvp += up * vp / navg
 
     comm.Barrier()
@@ -482,26 +462,23 @@ if __name__ == "__main__":
         with PdfPages(fname) as pdf:
             plt.figure("airfoil")
             ax = plt.gca()
-            plt.xlabel(r"$x/c$", fontsize=22, fontweight="bold")
-            plt.ylabel(r"$y / c$", fontsize=22, fontweight="bold")
-            plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
-            plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
+            plt.xlabel(r"$x/c$")
+            plt.ylabel(r"$y / c$")
             # remove duplicate labels
             handles, labels = ax.get_legend_handles_labels()
             by_label = dict(zip(labels, handles))
-            legend = ax.legend(by_label.values(), by_label.keys(), loc="best")
+            legend = ax.legend(by_label.values(), by_label.keys())
             ax.axis("equal")
-            plt.tight_layout()
-            pdf.savefig(dpi=300)
+            pdf.savefig()
 
             for xloc in ut.cord_locations():
                 plt.figure(f"airfoil-{xloc}")
                 ax = plt.gca()
-                plt.xlabel(r"$(x-x_c)' / c$", fontsize=22, fontweight="bold")
-                plt.ylabel(r"$(y-y_c)' / c$", fontsize=22, fontweight="bold")
-                plt.setp(ax.get_xmajorticklabels(), fontsize=18, fontweight="bold")
-                plt.setp(ax.get_ymajorticklabels(), fontsize=18, fontweight="bold")
-                legend = ax.legend(loc="best")
+                plt.xlabel(r"$(x-x_c)' / c$")
+                plt.ylabel(r"$(y-y_c)' / c$")
+                legend = ax.legend()
                 ax.axis("equal")
-                plt.tight_layout()
-                pdf.savefig(dpi=300)
+                pdf.savefig()
+
+        toc = time.perf_counter()
+        printer(f"Post-processed data in {toc - tic:0.4f} seconds")
