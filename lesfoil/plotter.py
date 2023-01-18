@@ -2,6 +2,7 @@
 
 import argparse
 import glob
+import itertools
 import os
 import pathlib
 
@@ -12,12 +13,10 @@ import utilities as ut
 from matplotlib import ticker
 from matplotlib.backends.backend_pdf import PdfPages
 from scipy import interpolate
-import itertools
 
-
-plt.style.use('./project.mplstyle')
+plt.style.use("./project.mplstyle")
 plt.rcParams.update({"figure.max_open_warning": 0})
-prop_cycle = plt.rcParams['axes.prop_cycle']
+prop_cycle = plt.rcParams["axes.prop_cycle"]
 cmap = prop_cycle.by_key()["color"]
 markers = itertools.cycle(("s", "d", "o", "p", "h"))
 
@@ -67,7 +66,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Reference data
-    colors = {"CM1":cmap[0], "CM2":cmap[1], "CM3":cmap[2]}
+    colors = {"CM1": cmap[0], "CM2": cmap[1], "CM3": cmap[2]}
     scatter = ["exp", "lesfoil"]
     mst = {"exp": next(markers), "lesfoil": next(markers)}
     labels = {
@@ -138,10 +137,11 @@ if __name__ == "__main__":
             plt.scatter(
                 rd.xdata(),
                 rd.ydata(),
-                facecolors = "None",
-                edgecolors = cmap[-1],
+                facecolors="None",
+                edgecolors=cmap[-1],
                 marker=mst[rd.val],
-                label=labels[rd.val],)
+                label=labels[rd.val],
+            )
         else:
             plt.plot(
                 rd.xdata(),

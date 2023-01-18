@@ -1,8 +1,8 @@
 """Post process."""
 
-import time
 import argparse
 import os
+import time
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,9 +14,9 @@ from mpi4py import MPI
 from scipy import interpolate
 from scipy.interpolate import griddata
 
-plt.style.use('./project.mplstyle')
+plt.style.use("./project.mplstyle")
 plt.rcParams.update({"figure.max_open_warning": 0})
-prop_cycle = plt.rcParams['axes.prop_cycle']
+prop_cycle = plt.rcParams["axes.prop_cycle"]
 cmap = prop_cycle.by_key()["color"]
 
 
@@ -266,7 +266,7 @@ if __name__ == "__main__":
         plt.figure("airfoil")
         p = plt.plot(
             upper.x,
-            upper.y
+            upper.y,
             label="upper",
         )
 
@@ -403,7 +403,7 @@ if __name__ == "__main__":
             yloc = upper_y_interp(xloc)
 
             sub = subset_fields(data, xloc, yloc, m_airfoil)
-        
+
             lst = comm.gather(sub, root=0)
             comm.Barrier()
             if rank == 0:
@@ -411,7 +411,7 @@ if __name__ == "__main__":
                 lo_idx = ut.lo_idx(upper.x.to_numpy(), xloc)
                 tgt = (upper.iloc[lo_idx + 1] - upper.iloc[lo_idx]).to_numpy()
                 tgt /= np.linalg.norm(tgt)
-                
+
                 xi = np.array([0])
                 yi = np.logspace(-5, np.log10(deta), ninterp)
                 df = pd.DataFrame(np.vstack(lst), columns=names)
@@ -422,7 +422,9 @@ if __name__ == "__main__":
 
                 # rotate data so that the tangent is horizontal and the normal is vertical
                 angle = np.degrees(np.arctan2(tgt[1], tgt[0]))
-                df["x"], df["y"] = ut.ccw_rotation(df.xa - xloc, df.ya - yloc, angle=-angle)
+                df["x"], df["y"] = ut.ccw_rotation(
+                    df.xa - xloc, df.ya - yloc, angle=-angle
+                )
                 df["u"], df["v"] = ut.ccw_rotation(df.ua, df.va, angle=-angle)
 
                 grouped = df.groupby("z")
