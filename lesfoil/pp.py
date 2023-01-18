@@ -44,7 +44,8 @@ def subset_fields(data, xloc, yloc, m_airfoil, radius=0.1):
     ]
 
 
-if __name__ == "__main__":
+def main():
+    """Post-process data."""
     # Parse arguments
     parser = argparse.ArgumentParser(
         description="A simple post-processing tool"
@@ -81,11 +82,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
     tic = time.perf_counter()
 
-    fdir = os.path.dirname(args.mfile)
     mname = os.path.splitext(os.path.basename(args.mfile))[0]
 
     comm = MPI.COMM_WORLD
-    size = comm.Get_size()
+    # size = comm.Get_size()
     rank = comm.Get_rank()
     par = stk.Parallel.initialize()
     printer = p0_printer(par)
@@ -492,7 +492,7 @@ if __name__ == "__main__":
             # remove duplicate labels
             handles, labels = ax.get_legend_handles_labels()
             by_label = dict(zip(labels, handles))
-            legend = ax.legend(by_label.values(), by_label.keys())
+            ax.legend(by_label.values(), by_label.keys())
             ax.axis("equal")
             pdf.savefig()
 
@@ -501,9 +501,13 @@ if __name__ == "__main__":
                 ax = plt.gca()
                 plt.xlabel(r"$(x-x_c)' / c$")
                 plt.ylabel(r"$(y-y_c)' / c$")
-                legend = ax.legend()
+                ax.legend()
                 ax.axis("equal")
                 pdf.savefig()
 
         toc = time.perf_counter()
         printer(f"Post-processed data in {toc - tic:0.4f} seconds")
+
+
+if __name__ == "__main__":
+    main()
