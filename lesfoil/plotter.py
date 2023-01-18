@@ -15,14 +15,13 @@ from scipy import interpolate
 import lesfoil as lf
 import lesfoil.utilities as ut
 
-plt.style.use("./lesfoil/project.mplstyle")
+module_dir = pathlib.Path(inspect.getfile(lf)).parents[0]
+base_dir = module_dir.parents[0]
+plt.style.use(module_dir / "project.mplstyle")
 plt.rcParams.update({"figure.max_open_warning": 0})
 prop_cycle = plt.rcParams["axes.prop_cycle"]
 cmap = prop_cycle.by_key()["color"]
 markers = itertools.cycle(("s", "d", "o", "p", "h"))
-
-module_dir = pathlib.Path(inspect.getfile(lf)).parents[0]
-base_dir = module_dir.parents[0]
 
 
 class RefData:
