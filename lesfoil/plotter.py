@@ -36,7 +36,9 @@ class RefData:
         else:
             self.fname = self.pfx + self.val + ".csv"
         refdir = pathlib.Path("../refdata")
-        self.df = pd.read_csv(refdir / self.fname, header=None, names=["x", key])
+        self.df = pd.read_csv(
+            refdir / self.fname, header=None, names=["x", key]
+        )
         self.df.sort_values(by="x", inplace=True)
 
         if self.sort == "polar":
@@ -85,14 +87,38 @@ if __name__ == "__main__":
             RefData("cp", "fig4a-", x, sort="polar")
             for x in ["CM1", "CM2", "CM3", "exp", "lesfoil"]
         ]
-        + [RefData("cf", "fig4b-", x) for x in ["CM1", "CM2", "CM3", "exp", "lesfoil"]]
-        + [RefData("u-a", "fig5a-", "CM3", sfx=f"-{x}", sort="y") for x in range(5)]
-        + [RefData("u-a", "fig5a-", "exp", sfx=f"-{x}", sort="y") for x in range(3, 5)]
-        + [RefData("u-a", "fig5a-", "lesfoil", sfx=f"-{x}", sort="y") for x in range(5)]
-        + [RefData("u-b", "fig5b-", "CM3", sfx=f"-{x}", sort="y") for x in range(5)]
-        + [RefData("u-b", "fig5b-", "exp", sfx=f"-{x}", sort="y") for x in range(5)]
-        + [RefData("u-b", "fig5b-", "lesfoil", sfx=f"-{x}", sort="y") for x in range(5)]
-        + [RefData("urms-a", "fig6a-", "CM3", sfx=f"-{x}", sort="y") for x in range(5)]
+        + [
+            RefData("cf", "fig4b-", x)
+            for x in ["CM1", "CM2", "CM3", "exp", "lesfoil"]
+        ]
+        + [
+            RefData("u-a", "fig5a-", "CM3", sfx=f"-{x}", sort="y")
+            for x in range(5)
+        ]
+        + [
+            RefData("u-a", "fig5a-", "exp", sfx=f"-{x}", sort="y")
+            for x in range(3, 5)
+        ]
+        + [
+            RefData("u-a", "fig5a-", "lesfoil", sfx=f"-{x}", sort="y")
+            for x in range(5)
+        ]
+        + [
+            RefData("u-b", "fig5b-", "CM3", sfx=f"-{x}", sort="y")
+            for x in range(5)
+        ]
+        + [
+            RefData("u-b", "fig5b-", "exp", sfx=f"-{x}", sort="y")
+            for x in range(5)
+        ]
+        + [
+            RefData("u-b", "fig5b-", "lesfoil", sfx=f"-{x}", sort="y")
+            for x in range(5)
+        ]
+        + [
+            RefData("urms-a", "fig6a-", "CM3", sfx=f"-{x}", sort="y")
+            for x in range(5)
+        ]
         + [
             RefData("urms-a", "fig6a-", "exp", sfx=f"-{x}", sort="y")
             for x in range(3, 5)
@@ -101,20 +127,38 @@ if __name__ == "__main__":
             RefData("urms-a", "fig6a-", "lesfoil", sfx=f"-{x}", sort="y")
             for x in range(5)
         ]
-        + [RefData("urms-b", "fig6b-", "CM3", sfx=f"-{x}", sort="y") for x in range(5)]
-        + [RefData("urms-b", "fig6b-", "exp", sfx=f"-{x}", sort="y") for x in range(5)]
+        + [
+            RefData("urms-b", "fig6b-", "CM3", sfx=f"-{x}", sort="y")
+            for x in range(5)
+        ]
+        + [
+            RefData("urms-b", "fig6b-", "exp", sfx=f"-{x}", sort="y")
+            for x in range(5)
+        ]
         + [
             RefData("urms-b", "fig6b-", "lesfoil", sfx=f"-{x}", sort="y")
             for x in range(5)
         ]
-        + [RefData("vrms-a", "fig7a-", "CM3", sfx=f"-{x}", sort="y") for x in range(5)]
+        + [
+            RefData("vrms-a", "fig7a-", "CM3", sfx=f"-{x}", sort="y")
+            for x in range(5)
+        ]
         + [
             RefData("vrms-a", "fig7a-", "exp", sfx=f"-{x}", sort="y")
             for x in range(3, 5)
         ]
-        + [RefData("vrms-b", "fig7b-", "CM3", sfx=f"-{x}", sort="y") for x in range(5)]
-        + [RefData("vrms-b", "fig7b-", "exp", sfx=f"-{x}", sort="y") for x in range(5)]
-        + [RefData("uvrms-a", "fig8a-", "CM3", sfx=f"-{x}", sort="y") for x in range(5)]
+        + [
+            RefData("vrms-b", "fig7b-", "CM3", sfx=f"-{x}", sort="y")
+            for x in range(5)
+        ]
+        + [
+            RefData("vrms-b", "fig7b-", "exp", sfx=f"-{x}", sort="y")
+            for x in range(5)
+        ]
+        + [
+            RefData("uvrms-a", "fig8a-", "CM3", sfx=f"-{x}", sort="y")
+            for x in range(5)
+        ]
         + [
             RefData("uvrms-a", "fig8a-", "exp", sfx=f"-{x}", sort="y")
             for x in range(3, 5)
@@ -123,8 +167,14 @@ if __name__ == "__main__":
             RefData("uvrms-a", "fig8a-", "lesfoil", sfx=f"-{x}", sort="y")
             for x in range(5)
         ]
-        + [RefData("uvrms-b", "fig8b-", "CM3", sfx=f"-{x}", sort="y") for x in range(5)]
-        + [RefData("uvrms-b", "fig8b-", "exp", sfx=f"-{x}", sort="y") for x in range(5)]
+        + [
+            RefData("uvrms-b", "fig8b-", "CM3", sfx=f"-{x}", sort="y")
+            for x in range(5)
+        ]
+        + [
+            RefData("uvrms-b", "fig8b-", "exp", sfx=f"-{x}", sort="y")
+            for x in range(5)
+        ]
         + [
             RefData("uvrms-b", "fig8b-", "lesfoil", sfx=f"-{x}", sort="y")
             for x in range(5)
@@ -162,7 +212,9 @@ if __name__ == "__main__":
         rd_zeta.xdata(), rd_zeta.ydata(), bounds_error=False
     )
     deta = rd_eta.ydata() / eta_interp(rd_eta.xdata()) * dzeta
-    deta_mean = np.mean(deta[np.where((0.3 < rd_eta.xdata()) & (rd_eta.xdata() < 0.7))])
+    deta_mean = np.mean(
+        deta[np.where((0.3 < rd_eta.xdata()) & (rd_eta.xdata() < 0.7))]
+    )
     wall_units_eta = rd_eta.ydata() / deta_mean
 
     wall_units_zeta_interp = interpolate.interp1d(
@@ -172,7 +224,9 @@ if __name__ == "__main__":
         rd_eta.xdata(), wall_units_eta, bounds_error=False
     )
     xnew = np.linspace(0, 1, 1000)
-    wall_units_mean = 0.5 * (wall_units_zeta_interp(xnew) + wall_units_eta_interp(xnew))
+    wall_units_mean = 0.5 * (
+        wall_units_zeta_interp(xnew) + wall_units_eta_interp(xnew)
+    )
     wall_units_mean_interp = interpolate.interp1d(
         xnew, wall_units_mean, bounds_error=False
     )
@@ -266,7 +320,10 @@ if __name__ == "__main__":
     cpcf["utau"] = np.sqrt(cpcf.tauw / rho0)
     cpcf["wall_units"] = cpcf.utau / nu
     tgt = np.vstack(
-        (np.diff(cpcf.x, append=cpcf.x.iloc[0]), np.diff(cpcf.y, append=cpcf.y.iloc[0]))
+        (
+            np.diff(cpcf.x, append=cpcf.x.iloc[0]),
+            np.diff(cpcf.y, append=cpcf.y.iloc[0]),
+        )
     )
     tgt /= np.linalg.norm(tgt, axis=0)
     cpcf["cftgt"] = cpcf.cfx * tgt[0, :] + cpcf.cfy * tgt[1, :]

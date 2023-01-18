@@ -10,7 +10,9 @@ def resample(df):
     lst = []
     npt = 10
     for i in range(len(df.x) - 1):
-        lst.append(np.linspace(df.x.iloc[i], df.x.iloc[i + 1], npt, endpoint=False))
+        lst.append(
+            np.linspace(df.x.iloc[i], df.x.iloc[i + 1], npt, endpoint=False)
+        )
     lst.append(np.array(df.x.iloc[-1]))
     xp = np.hstack(lst)
     f = interp1d(df.x, df.y)
@@ -28,7 +30,9 @@ def resample(df):
 
 def write(df, fname):
     """Write the dataframe."""
-    df.to_csv(fname, sep=" ", index=False, header=False, columns=["x", "y", "z"])
+    df.to_csv(
+        fname, sep=" ", index=False, header=False, columns=["x", "y", "z"]
+    )
     with open(fname, "r+") as f:
         content = f.read()
         f.seek(0, 0)

@@ -38,14 +38,17 @@ def subset_fields(data, xloc, yloc, m_airfoil, radius=0.1):
 
     # take the data above the cord vector of the aifoil and in a radius around (xloc, yloc)
     return data[
-        (yp >= m_airfoil * xp) & (((xp - xloc) ** 2 + (yp - yloc) ** 2) < radius**2),
+        (yp >= m_airfoil * xp)
+        & (((xp - xloc) ** 2 + (yp - yloc) ** 2) < radius**2),
         :,
     ]
 
 
 if __name__ == "__main__":
     # Parse arguments
-    parser = argparse.ArgumentParser(description="A simple post-processing tool")
+    parser = argparse.ArgumentParser(
+        description="A simple post-processing tool"
+    )
     parser.add_argument(
         "-m",
         "--mfile",
@@ -53,7 +56,9 @@ if __name__ == "__main__":
         required=True,
         type=str,
     )
-    parser.add_argument("--auto_decomp", help="Auto-decomposition", action="store_true")
+    parser.add_argument(
+        "--auto_decomp", help="Auto-decomposition", action="store_true"
+    )
     parser.add_argument(
         "-v",
         "--vel_name",
@@ -134,7 +139,9 @@ if __name__ == "__main__":
         tauwv = mesh.meta.get_field("tau_wall_vector")
         pressure = mesh.meta.get_field("pressure")
         names = ["x", "y", "z", "tauw", "tauwx", "tauwy", "tauwz", "pressure"]
-        nnodes = sum(bkt.size for bkt in mesh.iter_buckets(sel, stk.StkRank.NODE_RANK))
+        nnodes = sum(
+            bkt.size for bkt in mesh.iter_buckets(sel, stk.StkRank.NODE_RANK)
+        )
 
         cnt = 0
         data = np.zeros((nnodes, len(names)))
@@ -191,7 +198,9 @@ if __name__ == "__main__":
         sel = interior & mesh.meta.locally_owned_part
         coords = mesh.meta.coordinate_field
         turbulent_ke = mesh.meta.get_field("turbulent_ke")
-        specific_dissipation_rate = mesh.meta.get_field("specific_dissipation_rate")
+        specific_dissipation_rate = mesh.meta.get_field(
+            "specific_dissipation_rate"
+        )
         tvisc = mesh.meta.get_field("turbulent_viscosity")
         fields = [
             mesh.meta.get_field(vel_name),
@@ -202,7 +211,9 @@ if __name__ == "__main__":
         dveldx = mesh.meta.get_field(dudx_name)
         k_ratio = mesh.meta.get_field("k_ratio")
         names = ["x", "y", "z"] + field_names
-        nnodes = sum(bkt.size for bkt in mesh.iter_buckets(sel, stk.StkRank.NODE_RANK))
+        nnodes = sum(
+            bkt.size for bkt in mesh.iter_buckets(sel, stk.StkRank.NODE_RANK)
+        )
 
         cnt = 0
         data = np.zeros((nnodes, len(names)))
@@ -231,7 +242,9 @@ if __name__ == "__main__":
             tausgrs_xx = (coeff_sgrs * (dudx[:, 0] + dudx[:, 0])).reshape(
                 -1, 1
             ) + diag_tke
-            tausgrs_xy = (coeff_sgrs * (dudx[:, 1] + dudx[:, 3])).reshape(-1, 1)
+            tausgrs_xy = (coeff_sgrs * (dudx[:, 1] + dudx[:, 3])).reshape(
+                -1, 1
+            )
             tausgrs_yy = (coeff_sgrs * (dudx[:, 4] + dudx[:, 4])).reshape(
                 -1, 1
             ) + diag_tke
@@ -322,13 +335,21 @@ if __name__ == "__main__":
             # rotate the data to remove the aoa rotation
             df["xa"], df["ya"] = ut.ccw_rotation(df.x, df.y)
             df["ua"], df["va"] = ut.ccw_rotation(df.u, df.v)
-            df["tau_xxa"] = ut.ccw_rotation_t00(df.tau_xx, df.tau_xy, df.tau_yy)
-            df["tau_xya"] = ut.ccw_rotation_t01(df.tau_xx, df.tau_xy, df.tau_yy)
-            df["tau_yya"] = ut.ccw_rotation_t11(df.tau_xx, df.tau_xy, df.tau_yy)
+            df["tau_xxa"] = ut.ccw_rotation_t00(
+                df.tau_xx, df.tau_xy, df.tau_yy
+            )
+            df["tau_xya"] = ut.ccw_rotation_t01(
+                df.tau_xx, df.tau_xy, df.tau_yy
+            )
+            df["tau_yya"] = ut.ccw_rotation_t11(
+                df.tau_xx, df.tau_xy, df.tau_yy
+            )
 
             # rotate data so that the tangent is horizontal and the normal is vertical
             angle = np.degrees(np.arctan2(tgt[1], tgt[0]))
-            df["x"], df["y"] = ut.ccw_rotation(df.xa - xloc, df.ya - yloc, angle=-angle)
+            df["x"], df["y"] = ut.ccw_rotation(
+                df.xa - xloc, df.ya - yloc, angle=-angle
+            )
             df["u"], df["v"] = ut.ccw_rotation(df.ua, df.va, angle=-angle)
             df["tau_xx"] = ut.ccw_rotation_t00(
                 df.tau_xx, df.tau_xy, df.tau_yy, angle=-angle
@@ -389,7 +410,9 @@ if __name__ == "__main__":
         coords = mesh.meta.coordinate_field
         velocity = mesh.meta.get_field("velocity")
         names = ["x", "y", "z", "u", "v", "w"]
-        nnodes = sum(bkt.size for bkt in mesh.iter_buckets(sel, stk.StkRank.NODE_RANK))
+        nnodes = sum(
+            bkt.size for bkt in mesh.iter_buckets(sel, stk.StkRank.NODE_RANK)
+        )
 
         cnt = 0
         data = np.zeros((nnodes, len(names)))

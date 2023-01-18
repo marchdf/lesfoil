@@ -11,16 +11,26 @@ def parse_ic(fname):
         try:
             dat = yaml.full_load(stream)
             u0 = float(
-                dat["realms"][0]["initial_conditions"][0]["value"]["velocity"][0]
+                dat["realms"][0]["initial_conditions"][0]["value"]["velocity"][
+                    0
+                ]
             )
             rho0 = float(
-                dat["realms"][0]["material_properties"]["specifications"][0]["value"]
+                dat["realms"][0]["material_properties"]["specifications"][0][
+                    "value"
+                ]
             )
             mu = float(
-                dat["realms"][0]["material_properties"]["specifications"][1]["value"]
+                dat["realms"][0]["material_properties"]["specifications"][1][
+                    "value"
+                ]
             )
-            turb_model = dat["realms"][0]["solution_options"]["turbulence_model"]
-            dt = dat["Time_Integrators"][0]["StandardTimeIntegrator"]["time_step"]
+            turb_model = dat["realms"][0]["solution_options"][
+                "turbulence_model"
+            ]
+            dt = dat["Time_Integrators"][0]["StandardTimeIntegrator"][
+                "time_step"
+            ]
 
             return u0, rho0, mu, turb_model, dt
 
@@ -33,8 +43,14 @@ def ccw_rotation(x, y, angle=airfoil_aoa, rotcenx=0.0, rotceny=0.0, scale=1.0):
     theta = np.radians(angle)
     crdvec = np.array([np.cos(theta), -np.sin(theta)])
     tan_crdvec = np.array([np.sin(theta), np.cos(theta)])
-    xp = np.dot(np.asarray([x - rotcenx, y - rotceny]).T, crdvec) / scale + rotcenx
-    yp = np.dot(np.asarray([x - rotcenx, y - rotceny]).T, tan_crdvec) / scale + rotceny
+    xp = (
+        np.dot(np.asarray([x - rotcenx, y - rotceny]).T, crdvec) / scale
+        + rotcenx
+    )
+    yp = (
+        np.dot(np.asarray([x - rotcenx, y - rotceny]).T, tan_crdvec) / scale
+        + rotceny
+    )
     return xp, yp
 
 
