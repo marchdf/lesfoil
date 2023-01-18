@@ -1,24 +1,28 @@
 """Plotting script."""
 
 import argparse
-import glob
+import inspect
 import itertools
-import os
 import pathlib
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import utilities as ut
 from matplotlib import ticker
 from matplotlib.backends.backend_pdf import PdfPages
 from scipy import interpolate
 
-plt.style.use("./project.mplstyle")
+import lesfoil as lf
+import lesfoil.utilities as ut
+
+plt.style.use("./lesfoil/project.mplstyle")
 plt.rcParams.update({"figure.max_open_warning": 0})
 prop_cycle = plt.rcParams["axes.prop_cycle"]
 cmap = prop_cycle.by_key()["color"]
 markers = itertools.cycle(("s", "d", "o", "p", "h"))
+
+module_dir = pathlib.Path(inspect.getfile(lf)).parents[0]
+base_dir = module_dir.parents[0]
 
 
 class RefData:
@@ -35,7 +39,8 @@ class RefData:
             self.fname = self.pfx + self.val + self.sfx + ".csv"
         else:
             self.fname = self.pfx + self.val + ".csv"
-        refdir = pathlib.Path("../refdata")
+
+        refdir = base_dir / "refdata"
         self.df = pd.read_csv(
             refdir / self.fname, header=None, names=["x", key]
         )
@@ -59,7 +64,8 @@ class RefData:
         return self.df[self.key].to_numpy()
 
 
-if __name__ == "__main__":
+def main():
+    """Plot data."""
     # Parse arguments
     parser = argparse.ArgumentParser(description="A simple plot tool")
     parser.add_argument(
@@ -201,9 +207,9 @@ if __name__ == "__main__":
             )
 
     # Estimate wall units (utau/nu)
-    N_zeta_CM3 = 705
-    L_span = 0.0493
-    dzeta = L_span / (N_zeta_CM3 - 1)
+    n_zeta_cm3 = 705
+    l_span = 0.0493
+    dzeta = l_span / (n_zeta_cm3 - 1)
     rd_zeta = RefData("dzetap", "fig3c-", "CM3")
     wall_units_zeta = rd_zeta.ydata() / dzeta
 
@@ -285,17 +291,18 @@ if __name__ == "__main__":
     )
 
     # Nalu-Wind data
-    yname = glob.glob(os.path.join(args.fdir, "*.yaml"))[0]
-    fname = os.path.join(args.fdir, "wing.dat")
-    pname = os.path.join(args.fdir, "profiles.dat")
+    fdir = pathlib.Path(args.fdir)
+    yname = list(fdir.glob("*.yaml"))[0]
+    fname = fdir / "wing.dat"
+    pname = fdir / "profiles.dat"
     u0, rho0, mu, turb_model, dt = ut.parse_ic(yname)
     nu = mu / rho0
     model = turb_model.upper().replace("_", "-")
-    cord = 1.0
-    ref_area = 0.05
-    tau = cord / u0
+    # cord = 1.0
+    # ref_area = 0.05
+    # tau = cord / u0
+    # re = rho0 * u0 * cord / mu
     dyn_pres = rho0 * 0.5 * u0 * u0
-    re = rho0 * u0 * cord / mu
     deta = 0.000011813977015662547  # from the PW mesh
 
     # wing data
@@ -393,7 +400,7 @@ if __name__ == "__main__":
     ndf["urms"] = ndf.upup - ndf.tau_xx
     ndf["vrms"] = ndf.vpvp - ndf.tau_yy
     ndf["uvrms"] = ndf.upvp - ndf.tau_xy
-    grouped = ndf.groupby(["xloc"])
+    grouped = ndf.groupby("xloc")
     fields = {
         "u": 1.4,
         "urms": 0.3,
@@ -465,7 +472,7 @@ if __name__ == "__main__":
             plt.xlabel(r"$x/c$")
             plt.ylabel(plot["ylabel"])
             plt.xlim([0, 1])
-            legend = plt.gca().legend()
+            plt.gca().legend()
             pdf.savefig()
 
         sci_format = ticker.ScalarFormatter(useMathText=True)
@@ -521,12 +528,16 @@ if __name__ == "__main__":
                 # remove duplicate labels
                 handles, labels = ax.get_legend_handles_labels()
                 by_label = dict(zip(labels, handles))
-                legend = ax.legend(by_label.values(), by_label.keys())
+                ax.legend(by_label.values(), by_label.keys())
                 pdf.savefig()
 
         plt.figure("airfoil")
         plt.xlabel(r"$x/c$")
         plt.ylabel(r"$y / c$")
-        legend = plt.gca().legend()
+        plt.gca().legend()
         plt.gca().axis("equal")
         pdf.savefig()
+
+
+if __name__ == "__main__":
+    main()
