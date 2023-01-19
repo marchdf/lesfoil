@@ -208,6 +208,18 @@ def main():
                 label=labels[rd.val],
             )
 
+    for x in ["cf", "cp"]:
+        plt.figure(x)
+        plt.axhline(
+            0.0,
+            xmin=-100,
+            xmax=100,
+            color=cmap[-1],
+            ls="--",
+            lw=1,
+            zorder=0,
+        )
+
     # Estimate wall units (utau/nu)
     n_zeta_cm3 = 705
     l_span = 0.0493
