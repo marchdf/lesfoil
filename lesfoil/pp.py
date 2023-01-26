@@ -174,8 +174,9 @@ def main():
     # Extract velocity profiles
     is_ams = not mesh.meta.get_field("average_dudx").is_null
     printer(f"""This is {"" if is_ams else "not"} an AMS simulation.""")
-    vel_name = "velocity"
-    dudx_name = "dudx"
+    pfx_vel = "average_" if is_ams else ""
+    vel_name = pfx_vel + "velocity"
+    dudx_name = pfx_vel + "dudx"
     field_names = [
         "u",
         "v",
