@@ -229,16 +229,17 @@ def main():
             # tauSGRS_ij = coeff_sgrs *(avgdudx[:, i * 3 + j]
             #             + avgdudx[:, j * 3 + i]) + 2/3 rho k delta_ij
             dudx = dveldx.bkt_view(bkt)
-            nut = tvisc.bkt_view(bkt)
+            mut = tvisc.bkt_view(bkt)
             tke = turbulent_ke.bkt_view(bkt)
             if is_ams:
                 alpha = k_ratio.bkt_view(bkt) ** 1.7
                 krat = k_ratio.bkt_view(bkt)
             else:
-                alpha = np.ones(nut.shape)
-                krat = np.ones(nut.shape)
+                alpha = np.ones(mut.shape)
+                krat = np.ones(mut.shape)
             rho = 1.0
-            coeff_sgrs = alpha * (2.0 - alpha) * nut / rho
+            mu = 4.761904761904762e-07 # FIXME: grab from input file
+            coeff_sgrs = alpha * (2.0 - alpha) * mut + mu
             diag_tke = (-2.0 / 3.0 * rho * tke * krat).reshape(-1, 1)
             tausgrs_xx = (coeff_sgrs * (dudx[:, 0] + dudx[:, 0])).reshape(
                 -1, 1

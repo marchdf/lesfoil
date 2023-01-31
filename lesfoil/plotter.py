@@ -411,8 +411,8 @@ def main():
 
     # profiles
     ndf = pd.read_csv(pname)
-    ndf["urms"] = ndf.upup - ndf.tau_xx
-    ndf["vrms"] = ndf.vpvp - ndf.tau_yy
+    ndf["urms"] = np.sqrt(ndf.upup - ndf.tau_xx)
+    ndf["vrms"] = np.sqrt(ndf.vpvp - ndf.tau_yy)
     ndf["uvrms"] = ndf.upvp - ndf.tau_xy
     grouped = ndf.groupby("xloc")
     fields = {
