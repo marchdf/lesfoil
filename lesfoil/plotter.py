@@ -413,7 +413,7 @@ def main():
     ndf = pd.read_csv(pname)
     ndf["urms"] = np.sqrt(ndf.upup - ndf.tau_xx)
     ndf["vrms"] = np.sqrt(ndf.vpvp - ndf.tau_yy)
-    ndf["uvrms"] = ndf.upvp - ndf.tau_xy
+    ndf["uvrms"] = -(ndf.upvp - ndf.tau_xy)
     grouped = ndf.groupby("xloc")
     fields = {
         "u": 1.4,
@@ -504,7 +504,7 @@ def main():
                 "xlim": [-0.1, 1.5],
             },
             "uvrms": {
-                "xlabel": r"$\langle u'v' \rangle / u_\infty^2$",
+                "xlabel": r"$\langle - u'v' \rangle / u_\infty^2$",
                 "xlim": [-0.01, 0.07],
             },
             "tke": {"xlabel": r"$\langle k \rangle$", "xlim": [-0.01, 0.15]},
