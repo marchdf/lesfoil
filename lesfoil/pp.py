@@ -148,8 +148,8 @@ def main():
         idx = dist.argmin(axis=0)
     else:
         idx = np.arange(len(tsteps) - args.navg, len(tsteps))
-    tavg = tsteps[idx[0] :]
-    tavg_instantaneous = tsteps[idx[0] :]
+    tavg = tsteps #tsteps[idx[0] :]
+    tavg_instantaneous = tsteps #tsteps[idx[0] :]
     # printer("Averaging the following steps:")
     # printer(tavg)
 

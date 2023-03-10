@@ -317,7 +317,8 @@ def main():
     # tau = cord / u0
     # re = rho0 * u0 * cord / mu
     dyn_pres = rho0 * 0.5 * u0 * u0
-    deta = 0.000011813977015662547  # from the PW mesh
+    # deta = 0.000011813977015662547  # from the PW mesh
+    deta = 0.5e-5  # from the PW mesh
 
     # wing data
     cpcf = pd.read_csv(fname)
